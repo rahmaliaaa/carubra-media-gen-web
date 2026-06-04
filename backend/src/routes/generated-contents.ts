@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { find } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 // Return list of generated images/videos created by user
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { find, findOne, insert, updateOne, deleteOne } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 type Member = {
   id: string

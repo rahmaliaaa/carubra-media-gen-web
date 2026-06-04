@@ -3,7 +3,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { getSupabaseAdmin } from '../lib/supabase.js'
 import qs from 'querystring'
 
-const router = Router()
+const router: Router = Router()
 
 // ─── Helper: upsert social_connect ke Supabase ────────────────────────────────
 async function upsertSocialConnect(data: {

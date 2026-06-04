@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { findOne, updateOne } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 router.get('/profile', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {

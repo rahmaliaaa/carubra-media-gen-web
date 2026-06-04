@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { findOne, find, insert, updateOne } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const XENDIT_SECRET_KEY    = process.env.XENDIT_SECRET_KEY    ?? ''

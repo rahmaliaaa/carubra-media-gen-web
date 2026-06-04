@@ -16,7 +16,7 @@ import paymentRoutes from './routes/payments.js'
 import { startContentAnalysisWorker } from './workers/contentAnalysisWorker.js'
 
 
-const app = express()
+const app: express.Express = express()
 const PORT = process.env.PORT || 3001
 
 // Middleware

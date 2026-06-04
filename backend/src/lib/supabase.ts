@@ -39,9 +39,18 @@ export async function getSupabaseAdmin(): Promise<SupabaseClient> {
 export async function insert(
   table: string,
   data: any
-): Promise<{ data: any; error: any }> {
-  const supabase = await getSupabaseAdmin() // ← FIX: was getSupabase()
-  return supabase.from(table).insert([data]).select()
+): Promise<any> {
+  const supabase = await getSupabaseAdmin()
+  const { data: result, error } = await supabase
+    .from(table)
+    .insert([data])
+    .select()
+    .single()
+  if (error) {
+    console.error(`Error inserting into ${table}:`, error)
+    throw new Error(error.message)
+  }
+  return result
 }
 
 /**

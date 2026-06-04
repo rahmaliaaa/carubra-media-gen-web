@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { generateToken } from '../middleware/auth.js'
 import { findOne, insert } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 // Login
 router.post('/login', async (req, res) => {
@@ -33,15 +33,9 @@ router.post('/login', async (req, res) => {
         coins: 0,
       }
 
-      // FIX: insert return { data, error } — tangkap dengan benar
-      const { data: inserted, error: insertError } = await insert('users', newUser)
-      if (insertError) {
-        console.error('Auto-register error:', insertError)
-        return res.status(500).json({ error: 'Auto-registration failed: ' + insertError.message })
-      }
-
-      // Pakai data yang dikembalikan Supabase (sudah include generated fields)
-      user = inserted?.[0] ?? newUser
+      // insert returns the inserted user directly and throws on error
+      const inserted = await insert('users', newUser)
+      user = inserted ?? newUser
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password)
@@ -100,13 +94,7 @@ router.post('/register', async (req, res) => {
       coins: 0,
     }
 
-    const { data: inserted, error: insertError } = await insert('users', newUser)
-    if (insertError) {
-      console.error('Insert error:', insertError)
-      return res.status(500).json({ error: 'Registration failed: ' + insertError.message })
-    }
-
-    const savedUser = inserted?.[0] ?? newUser
+    const savedUser = await insert('users', newUser)
 
     const token = generateToken({ id: savedUser.id, email: savedUser.email, name: savedUser.name })
 

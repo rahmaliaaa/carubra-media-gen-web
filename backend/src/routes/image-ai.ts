@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { find, insert, updateOne, deleteOne } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ImageGeneration = {

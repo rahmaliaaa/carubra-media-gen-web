@@ -1,9 +1,9 @@
 import { Router, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
-import { find, insert, updateOne, deleteOne } from '../lib/supabase.js'
+import { find, findOne, insert, updateOne, deleteOne } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VideoGeneration = {
@@ -183,14 +183,13 @@ router.get('/status/:jobId', authenticateToken, async (req: AuthRequest, res: Re
     })
     const pollData = await pollRes.json()
 
-    //console.log(`[video-ai] Status check for ${jobId}: ${pollData.status}`)
     console.log('[video-ai] COMPLETED FULL DATA:', JSON.stringify(pollData, null, 2))
 
     if (pollData.status === 'completed') {
       const videoUrl =
-        pollData?.unsigned_urls?.[0] || // ← OpenRouter video url
+        pollData?.unsigned_urls?.[0] ||
         pollData?.data?.[0]?.url     ||
-        pollData?.data?.[0]?.uri     ||  // ← Veo sering pakai ini
+        pollData?.data?.[0]?.uri     ||
         pollData?.videos?.[0]?.uri   ||
         pollData?.videos?.[0]?.url   ||
         pollData?.output?.[0]?.url   ||
@@ -198,7 +197,6 @@ router.get('/status/:jobId', authenticateToken, async (req: AuthRequest, res: Re
         pollData?.url                ||
         null
 
-      // Update DB
       try {
         await updateOne(
           'videos',
@@ -221,7 +219,6 @@ router.get('/status/:jobId', authenticateToken, async (req: AuthRequest, res: Re
       return res.json({ status: 'failed' })
     }
 
-    // masih processing
     return res.json({ status: 'processing' })
 
   } catch (error) {
@@ -284,8 +281,8 @@ router.post('/caption', authenticateToken, async (req: AuthRequest, res: Respons
 // ─── GET video by id ──────────────────────────────────────────────────────────
 router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const db    = await getDb()
-    const video = await db.collection('videos').findOne({ id: req.params.id, userId: req.user?.id })
+    const videos = await find('videos', { id: req.params.id, user_id: req.user?.id })
+    const video = videos?.[0] ?? null
     if (!video) return res.status(404).json({ error: 'Video not found' })
     res.json({ video })
   } catch (error) {
@@ -296,9 +293,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
 // ─── DELETE video ─────────────────────────────────────────────────────────────
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const db     = await getDb()
-    const result = await db.collection('videos').deleteOne({ id: req.params.id, userId: req.user?.id })
-    if (result.deletedCount === 0) return res.status(404).json({ error: 'Video not found' })
+    await deleteOne('videos', { id: req.params.id, user_id: req.user?.id })
     res.json({ message: 'Video deleted successfully' })
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete video', detail: String(error) })

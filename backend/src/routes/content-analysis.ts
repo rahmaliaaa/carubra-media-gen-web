@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { find, findOne, insert } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 // List analysis jobs for user
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {

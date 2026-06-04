@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
 import { find, insert, deleteOne } from '../lib/supabase.js'
 
-const router = Router()
+const router: Router = Router()
 
 const toClient = (doc: any) => ({
   id: doc.id,
@@ -68,14 +68,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       updated_at: new Date(),
     }
 
-    const { data, error } = await insert('scheduled_posts', doc)
-    
-    if (error) {
-      return res.status(500).json({ error: 'Failed to create post' })
-    }
-
+    const result = await insert('scheduled_posts', doc)
     res.status(201).json({
-      post: toClient(data[0]),
+      post: toClient(result),
     })
   } catch (err: any) {
     console.error(err)
