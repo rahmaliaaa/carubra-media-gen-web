@@ -1,0 +1,46 @@
+"use client"
+
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { user, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/")
+    }
+  }, [user, isLoading, router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-primary text-xl font-semibold">
+          Loading...
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <DashboardSidebar />
+      <main className="md:ml-64 min-h-screen">
+        <div className="p-6 pt-16 md:pt-6">
+          {children}
+        </div>
+      </main>
+    </div>
+  )
+}
