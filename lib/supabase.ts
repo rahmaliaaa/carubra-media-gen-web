@@ -1,0 +1,77 @@
+import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+let supabaseClient: SupabaseClient | null = null
+
+export async function getSupabase(): Promise<SupabaseClient> {
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_ANON_KEY
+    if (!supabaseUrl || !supabaseKey) throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY are required')
+    supabaseClient = createClient(supabaseUrl, supabaseKey)
+  }
+  return supabaseClient
+}
+
+export async function getSupabaseAdmin(): Promise<SupabaseClient> {
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !supabaseServiceKey) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required')
+  return createClient(supabaseUrl, supabaseServiceKey)
+}
+
+export async function insert(table: string, data: any): Promise<any> {
+  const supabase = await getSupabaseAdmin()
+  const { data: result, error } = await supabase.from(table).insert([data]).select().single()
+  if (error) throw error
+  return result
+}
+
+export async function findOne(table: string, filter: Record<string, any>): Promise<any> {
+  const supabase = await getSupabaseAdmin()
+  let query = supabase.from(table).select('*')
+  for (const [key, value] of Object.entries(filter)) query = query.eq(key, value)
+  const { data, error } = await query.maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function find(
+  table: string,
+  filter: Record<string, any> = {},
+  options: { orderBy?: string; ascending?: boolean; limit?: number } = {}
+): Promise<any[]> {
+  const supabase = await getSupabaseAdmin()
+  let query = supabase.from(table).select('*')
+  for (const [key, value] of Object.entries(filter)) query = query.eq(key, value)
+  if (options.orderBy) query = query.order(options.orderBy, { ascending: options.ascending ?? true })
+  if (options.limit) query = query.limit(options.limit)
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}
+
+export async function updateOne(table: string, filter: Record<string, any>, data: any): Promise<any> {
+  const supabase = await getSupabaseAdmin()
+  let query = supabase.from(table).update(data)
+  for (const [key, value] of Object.entries(filter)) query = query.eq(key, value)
+  const { data: result, error } = await query.select().single()
+  if (error) throw error
+  return result
+}
+
+export async function upsert(table: string, data: any, options?: { onConflict?: string }): Promise<any> {
+  const supabase = await getSupabaseAdmin()
+  const { data: result, error } = await supabase.from(table).upsert(data, options).select().single()
+  if (error) throw error
+  return result
+}
+
+export async function deleteOne(table: string, filter: Record<string, any>): Promise<boolean> {
+  const supabase = await getSupabaseAdmin()
+  let query = supabase.from(table).delete()
+  for (const [key, value] of Object.entries(filter)) query = query.eq(key, value)
+  const { error } = await query
+  if (error) throw error
+  return true
+}

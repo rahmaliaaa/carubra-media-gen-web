@@ -1,0 +1,49 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getUserFromRequest } from '@/middleware/auth'
+import { find, insert } from '@/lib/supabase'
+
+export async function GET(req: NextRequest) {
+  const user = getUserFromRequest(req)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const docs = await find('social_connects', { user_id: user.id })
+    const connections = docs.map((doc: any) => ({
+      platform: doc.platform,
+      username: doc.account_username,
+      connectedAt: doc.created_at,
+    }))
+    return NextResponse.json({ connections })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const user = getUserFromRequest(req)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const { platform, username } = await req.json()
+
+    if (!platform || !username) {
+      return NextResponse.json({ error: 'Platform and username are required' }, { status: 400 })
+    }
+
+    const doc = {
+      user_id: user.id,
+      platform,
+      account_username: username,
+      account_id: username,
+      access_token: 'manual',
+      status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    await insert('social_connects', doc)
+    return NextResponse.json({ message: 'Connected successfully' }, { status: 201 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}

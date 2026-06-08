@@ -3,7 +3,8 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { DashboardSidebar } from "\@/components/dashboard-sidebar"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 export default function DashboardLayout({
   children,
@@ -38,6 +39,7 @@ export default function DashboardLayout({
       <DashboardSidebar />
       <main className="md:ml-64 min-h-screen">
         <div className="p-6 pt-16 md:pt-6">
+          <DashboardHeader />
           {children}
         </div>
       </main>
