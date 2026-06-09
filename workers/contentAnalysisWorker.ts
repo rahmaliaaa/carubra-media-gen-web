@@ -1,4 +1,4 @@
-import { find, updateOne } from '../api/lib/supabase.js'
+import { find, updateOne } from '../lib/supabase'
 
 export function startContentAnalysisWorker(intervalMs = 10000) {
   console.log('[worker] Starting content analysis worker')

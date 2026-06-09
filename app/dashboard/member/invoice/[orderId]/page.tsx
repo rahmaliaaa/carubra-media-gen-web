@@ -72,14 +72,11 @@ export default function AdminInvoicesPage() {
       setLoading(true)
       const token = localStorage.getItem('carubra-token')
       const res = await fetch('/api/admin/transactions', {
-        credentials: 'include',
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setTransactions(data.transactions ?? [])
-      // Tambah sementara di fetchData setelah setTransactions
-      console.log(data.transactions.map(tx => ({ id: tx.invoiceId, url: tx.invoiceUrl })))
       setSummary(data.summary ?? null)
     } catch (err) {
       console.error('[AdminInvoicesPage]', err)

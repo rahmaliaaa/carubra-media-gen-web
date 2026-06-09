@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { supabase } from './api/lib/supabase.js'
+import { find } from './lib/supabase'
 
 async function test() {
   try {
