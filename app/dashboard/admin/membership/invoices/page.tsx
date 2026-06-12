@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/contexts/language-context"
 
 type TransactionStatus = "success" | "pending" | "failed" | "expired"
 
@@ -87,6 +88,8 @@ export default function AdminInvoicesPage() {
     fetchData()
   }, [fetchData])
 
+  const { t } = useLanguage()
+
   const handleExportCsv = async () => {
     try {
       setExporting(true)
@@ -117,8 +120,8 @@ export default function AdminInvoicesPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Invoice & Transaksi</h1>
-          <p className="text-muted-foreground text-sm mt-1">Kelola dan pantau seluruh transaksi pembelian token.</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('admin.invoiceTransactionsTitle')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('admin.invoiceTransactionsDescription')}</p>
         </div>
         <Button
           onClick={handleExportCsv}
@@ -126,7 +129,7 @@ export default function AdminInvoicesPage() {
           variant="outline"
           size="sm"
         >
-          {exporting ? 'Mengekspor…' : '⬇ Export CSV'}
+          {exporting ? t('admin.exporting') : t('admin.exportCsv')}
         </Button>
       </div>
 
@@ -135,30 +138,30 @@ export default function AdminInvoicesPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="space-y-1 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Total Pendapatan</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t('admin.revenue')}</p>
               <p className="text-2xl font-bold text-emerald-700">{formatIDR(summary.totalRevenue)}</p>
-              <p className="text-xs text-muted-foreground">{summary.successCount} transaksi berhasil</p>
+              <p className="text-xs text-muted-foreground">{summary.successCount} {t('admin.successful')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="space-y-1 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Token Terjual</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t('admin.tokensSold')}</p>
               <p className="text-2xl font-bold text-foreground">{summary.totalTokensSold.toLocaleString('id-ID')}</p>
-              <p className="text-xs text-muted-foreground">dari {summary.totalTransactions} transaksi</p>
+              <p className="text-xs text-muted-foreground">{t('admin.ofTotal', { count: summary.totalTransactions })}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="space-y-1 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Menunggu</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t('admin.waiting')}</p>
               <p className="text-2xl font-bold text-amber-600">{summary.pendingCount}</p>
-              <p className="text-xs text-muted-foreground">transaksi pending</p>
+              <p className="text-xs text-muted-foreground">{t('admin.transactionsPending')}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="space-y-1 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Gagal / Expired</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t('admin.failedExpired')}</p>
               <p className="text-2xl font-bold text-destructive">{summary.failedCount + summary.expiredCount}</p>
-              <p className="text-xs text-muted-foreground">{summary.failedCount} gagal, {summary.expiredCount} expired</p>
+              <p className="text-xs text-muted-foreground">{summary.failedCount} {t('admin.failed')}, {summary.expiredCount} {t('admin.expired')}</p>
             </CardContent>
           </Card>
         </div>
@@ -169,17 +172,17 @@ export default function AdminInvoicesPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('admin.status')}</label>
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="all">Semua Status</option>
-                <option value="success">Berhasil</option>
-                <option value="pending">Menunggu</option>
-                <option value="failed">Gagal</option>
-                <option value="expired">Kedaluwarsa</option>
+                <option value="all">{t('admin.statusAll')}</option>
+                <option value="success">{t('admin.statusSuccess')}</option>
+                <option value="pending">{t('admin.statusPending')}</option>
+                <option value="failed">{t('admin.statusFailed')}</option>
+                <option value="expired">{t('admin.statusExpired')}</option>
               </select>
             </div>
 
@@ -204,7 +207,7 @@ export default function AdminInvoicesPage() {
             </div>
 
             <Button size="sm" onClick={fetchData} disabled={loading}>
-              {loading ? 'Memuat…' : 'Terapkan Filter'}
+              {loading ? t('common.loading') : t('admin.applyFilters')}
             </Button>
             {(statusFilter !== 'all' || startDate || endDate) && (
               <Button
@@ -212,7 +215,7 @@ export default function AdminInvoicesPage() {
                 variant="ghost"
                 onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate('') }}
               >
-                Reset
+                {t('admin.reset')}
               </Button>
             )}
           </div>

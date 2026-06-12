@@ -17,7 +17,9 @@ export async function GET(
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
     }
 
-    if (transaction.user_id !== user.id && user.role !== 'admin') {
+    const requester = await findOne('users', { id: user.id })
+    const isAdmin = requester?.role?.toLowerCase() === 'admin'
+    if (transaction.user_id !== user.id && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -422,7 +424,7 @@ export async function GET(
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       })
       const page = await browser.newPage()
-      await page.setContent(html, { waitUntil: 'networkidle0' })
+      await page.setContent(html, { waitUntil: 'domcontentloaded' })
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -430,7 +432,7 @@ export async function GET(
       })
       await browser.close()
 
-      return new NextResponse(pdfBuffer, {
+      return new NextResponse(pdfBuffer as any, {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',

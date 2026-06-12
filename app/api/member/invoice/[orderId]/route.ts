@@ -19,7 +19,9 @@ export async function GET(
     }
 
     // Pastikan transaksi milik user ini (kecuali admin)
-    if (transaction.user_id !== user.id && user.role !== 'admin') {
+    const requester = await findOne('users', { id: user.id })
+    const isAdmin = requester?.role?.toLowerCase() === 'admin'
+    if (transaction.user_id !== user.id && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

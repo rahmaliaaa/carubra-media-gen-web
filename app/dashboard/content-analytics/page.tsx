@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Chart as ChartJS,
@@ -12,9 +12,10 @@ import {
   Tooltip,
   Filler,
 } from "chart.js"
-import { Line, Bar } from "react-chartjs-2"
+import { ArcElement, Legend } from 'chart.js'
+import { Line, Bar, Pie } from "react-chartjs-2"
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, ArcElement, Legend)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StrategyResult = {
@@ -257,6 +258,48 @@ export default function ContentStrategyPage() {
       x: { ticks: { font: { size: 11 } }, grid: { display: false } },
       y: { ticks: { font: { size: 11 } }, grid: { color: "rgba(128,128,128,0.1)" } },
     },
+  }
+
+  // Mermaid container ref and render logic (client-side only)
+  const mermaidRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!result) return
+    // dynamic import mermaid for client-side rendering
+    // @ts-ignore - dynamic import of mermaid (no types bundled)
+    import("mermaid").then((m: any) => {
+      try {
+        const mermaid = m.default ?? m
+        mermaid.initialize({ startOnLoad: false, theme: "default" })
+        const nodes = result.content_flow
+          .map((s, i) => `A${i}["${s.replace(/\"/g, '\\"')}"]`)
+          .join("\n")
+        const links = result.content_flow
+          .map((_, i) => (i < result.content_flow.length - 1 ? `A${i} --> A${i + 1}` : ""))
+          .filter(Boolean)
+          .join("\n")
+        const graph = `flowchart LR\n${nodes}\n${links}`
+        // use activeJobId to make element id unique per job
+        const renderId = `mermaidDiagram-${activeJobId ?? Math.random().toString(36).slice(2)}`
+        mermaid.render(renderId, graph).then((res: any) => {
+          const svg = res?.svg ?? ""
+          if (mermaidRef.current) mermaidRef.current.innerHTML = svg
+        })
+      } catch (e) {
+        // ignore render errors
+      }
+    }).catch(() => {})
+  }, [result, activeJobId])
+
+  // Sentiment pie data
+  const sentimentData = {
+    labels: ["Positive", "Neutral", "Negative"],
+    datasets: [
+      {
+        data: [result?.sentiment.positive ?? 0, result?.sentiment.neutral ?? 0, result?.sentiment.negative ?? 0],
+        backgroundColor: ["#34D399", "#FBBF24", "#F87171"],
+        hoverOffset: 6,
+      },
+    ],
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -507,6 +550,26 @@ export default function ContentStrategyPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Diagram (Mermaid) + Sentiment Pie */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Card className="sm:col-span-2">
+              <CardContent className="pt-5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">Diagram alur konten</p>
+                <div className="rounded border border-border p-3 min-h-[140px] overflow-auto" ref={mermaidRef} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Analisis sentimen</p>
+                <div style={{ height: 150 }}>
+                  <Pie data={sentimentData} options={{ plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }} />
+                </div>
+                <p className="text-sm text-muted-foreground mt-3">{result.sentiment_summary}</p>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Audience match + Platform reach */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

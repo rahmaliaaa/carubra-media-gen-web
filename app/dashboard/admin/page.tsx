@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ShieldCheck, Users, FileText, Settings, Sparkles, Search, BarChart2, DollarSign } from "lucide-react"
+import { ShieldCheck, FileText, Settings, Sparkles, Search, BarChart2, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,14 +14,15 @@ import {
   BarElement,
   LineElement,
   PointElement,
+  ArcElement,
   Filler,
   Title,
   Tooltip,
   Legend,
 } from "chart.js"
-import { Bar, Line } from "react-chartjs-2"
+import { Bar, Pie } from "react-chartjs-2"
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Filler, Title, Tooltip, Legend)
 
 type AdminUser = {
   id: string
@@ -140,6 +141,17 @@ function buildMonthlyTrend(logs?: AiUsageLog[]) {
   }
 }
 
+const PIE_COLORS = [
+  "rgba(56,189,248,0.8)",
+  "rgba(99,102,241,0.8)",
+  "rgba(16,185,129,0.8)",
+  "rgba(245,158,11,0.8)",
+  "rgba(248,113,113,0.8)",
+  "rgba(167,139,250,0.8)",
+  "rgba(37,99,235,0.8)",
+  "rgba(239,68,68,0.8)",
+]
+
 export default function AdminDashboardPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
@@ -196,7 +208,6 @@ export default function AdminDashboardPage() {
       subject.role || "User"
     )
     if (!nextRole) return
-
     try {
       await apiFetch(`/api/admin/users/${subject.id}`, {
         method: "PATCH",
@@ -219,7 +230,6 @@ export default function AdminDashboardPage() {
       setError("Nilai koin tidak valid")
       return
     }
-
     try {
       await apiFetch(`/api/admin/users/${subject.id}`, {
         method: "PATCH",
@@ -238,7 +248,6 @@ export default function AdminDashboardPage() {
       `${nextState ? "Blokir" : "Batalkan blokir"} pengguna ${subject.email}?`
     )
     if (!confirmation) return
-
     try {
       await apiFetch(`/api/admin/users/${subject.id}`, {
         method: "PATCH",
@@ -255,7 +264,6 @@ export default function AdminDashboardPage() {
       `Atur ulang kata sandi untuk ${subject.email}. Masukkan kata sandi baru:`
     )
     if (!nextPassword) return
-
     try {
       await apiFetch(`/api/admin/users/${subject.id}`, {
         method: "PATCH",
@@ -289,6 +297,9 @@ export default function AdminDashboardPage() {
     )
   })
 
+  const hasAiLogs = (monitoring?.aiUsageLogs?.length ?? 0) > 0
+  const hasMonthlyTrend = monthlyTrend.labels.length > 0
+
   if (isLoading || !user) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-base text-muted-foreground">
@@ -307,254 +318,238 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8 max-w-full">
-      <div className="grid gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Admin Console</p>
-              <h1 className="text-3xl font-bold">Superadmin Dashboard</h1>
-              <p className="mt-2 text-muted-foreground max-w-2xl">
-                Kelola pengguna, isi konten, dan pantau kesehatan platform secara cepat.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-border bg-background p-4 text-center">
-              <ShieldCheck className="mx-auto h-9 w-9 text-primary" />
-              <p className="mt-3 text-sm text-muted-foreground">Signed in as</p>
-              <p className="mt-1 font-semibold">{user.email}</p>
-            </div>
-          </div>
+          <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Admin Console</p>
+          <h1 className="text-3xl font-bold">Superadmin Dashboard</h1>
+          <p className="mt-2 text-muted-foreground max-w-2xl">
+            Kelola pengguna, isi konten, dan pantau kesehatan platform secara cepat.
+          </p>
         </div>
-
-        <div className="grid gap-4">
-          <div className="grid gap-4">
-            <Card className="border border-border bg-background">
-              <CardContent className="space-y-2">
-                <p className="text-sm text-muted-foreground uppercase tracking-[0.24em]">Ringkasan</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-primary/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-primary/80">Total Pengguna</p>
-                    <p className="mt-2 text-3xl font-semibold">{stats?.totalUsers ?? "—"}</p>
-                  </div>
-                  <div className="rounded-3xl bg-secondary/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Admin Aktif</p>
-                    <p className="mt-2 text-3xl font-semibold">{stats?.adminCount ?? "—"}</p>
-                  </div>
-                  <div className="rounded-3xl bg-emerald-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Pengguna Terblokir</p>
-                    <p className="mt-2 text-3xl font-semibold">{stats?.bannedUsers ?? "—"}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-700">Membership Aktif</p>
-                    <p className="mt-2 text-3xl font-semibold">{stats?.membershipUsers ?? "—"}</p>
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 mt-3">
-                  <div className="rounded-3xl bg-emerald-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Total Koin</p>
-                    <p className="mt-2 text-3xl font-semibold">{stats?.totalCoins ?? "—"}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-700">Konten Tersimpan</p>
-                    <p className="mt-2 text-3xl font-semibold">{stats?.contentCount ?? "—"}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border bg-background">
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Sparkles className="h-5 w-5 text-amber-500" />
-                  <div>
-                    <p className="text-sm font-semibold">Kesehatan Sistem</p>
-                    <p className="text-xs text-muted-foreground">Semua layanan platform berjalan normal.</p>
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Autentikasi</p>
-                    <p className="mt-2 font-semibold">Berhasil</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Database</p>
-                    <p className="mt-2 font-semibold">Tersambung</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4">
-            <Card className="border border-border bg-background">
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Statistik</p>
-                    <h2 className="text-xl font-semibold">Ringkasan Kinerja</h2>
-                  </div>
-                </div>
-                <div>
-                  <Bar
-                    options={{
-                      responsive: true,
-                      plugins: {
-                        legend: { position: "bottom" },
-                        title: {
-                          display: true,
-                          text: "Perbandingan Pengguna dan Konten",
-                          font: { size: 14 },
-                        },
-                      },
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          ticks: { precision: 0 },
-                        },
-                      },
-                    }}
-                    data={{
-                      labels: ["Pengguna", "Admin", "Diblokir", "Membership", "Konten", "Koin"],
-                      datasets: [
-                        {
-                          label: "Jumlah",
-                          data: [
-                            stats?.totalUsers ?? 0,
-                            stats?.adminCount ?? 0,
-                            stats?.bannedUsers ?? 0,
-                            stats?.membershipUsers ?? 0,
-                            stats?.contentCount ?? 0,
-                            stats?.totalCoins ?? 0,
-                          ],
-                          backgroundColor: [
-                            "rgba(59,130,246,0.75)",
-                            "rgba(16,185,129,0.75)",
-                            "rgba(245,158,11,0.75)",
-                            "rgba(123,63,248,0.75)",
-                            "rgba(14,165,233,0.75)",
-                            "rgba(248,113,113,0.75)",
-                          ],
-                          borderRadius: 12,
-                        },
-                      ],
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border bg-background">
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Monitor AI</p>
-                    <h2 className="text-xl font-semibold">Penggunaan AI Terakhir</h2>
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total Event AI</p>
-                    <p className="mt-2 text-3xl font-semibold">{monitoring?.aiUsageSummary.totalEvents ?? "—"}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total Token</p>
-                    <p className="mt-2 text-3xl font-semibold">{monitoring?.aiUsageSummary.totalTokens ?? "—"}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Kuota Terakhir</p>
-                    <p className="mt-2 text-3xl font-semibold">{monitoring?.aiUsageSummary.latestQuotaRemaining ?? "—"}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-950/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Terakhir Dipakai</p>
-                    <p className="mt-2 text-3xl font-semibold">
-                      {monitoring?.aiUsageSummary.latestUsageAt
-                        ? new Date(monitoring.aiUsageSummary.latestUsageAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Bar
-                    options={{
-                      responsive: true,
-                      plugins: {
-                        legend: { position: "bottom" },
-                        title: {
-                          display: true,
-                          text: "Token AI per event terakhir",
-                          font: { size: 14 },
-                        },
-                      },
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          ticks: { precision: 0 },
-                        },
-                      },
-                    }}
-                    data={{
-                      labels: monitoring?.aiUsageLogs.map((item) => new Date(item.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })) ?? [],
-                      datasets: [
-                        {
-                          label: "Total Token",
-                          data: monitoring?.aiUsageLogs.map((item) => item.total_tokens ?? 0) ?? [],
-                          backgroundColor: "rgba(56,189,248,0.8)",
-                          borderRadius: 8,
-                        },
-                      ],
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <div className="rounded-3xl border border-border bg-background p-4 text-center">
+          <ShieldCheck className="mx-auto h-9 w-9 text-primary" />
+          <p className="mt-3 text-sm text-muted-foreground">Signed in as</p>
+          <p className="mt-1 font-semibold">{user.email}</p>
         </div>
       </div>
 
+      {/* Ringkasan + Kesehatan Sistem */}
       <div className="grid gap-4">
-        <Card className="w-full border border-border bg-background">
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Tren Bulanan</p>
-                <h2 className="text-xl font-semibold">Penggunaan AI Bulanan</h2>
+        <Card className="border border-border bg-background">
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground uppercase tracking-[0.24em]">Ringkasan</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl bg-primary/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-primary/80">Total Pengguna</p>
+                <p className="mt-2 text-3xl font-semibold">{stats?.totalUsers ?? "—"}</p>
+              </div>
+              <div className="rounded-3xl bg-secondary/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Admin Aktif</p>
+                <p className="mt-2 text-3xl font-semibold">{stats?.adminCount ?? "—"}</p>
+              </div>
+              <div className="rounded-3xl bg-emerald-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Pengguna Terblokir</p>
+                <p className="mt-2 text-3xl font-semibold">{stats?.bannedUsers ?? "—"}</p>
+              </div>
+              <div className="rounded-3xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-700">Membership Aktif</p>
+                <p className="mt-2 text-3xl font-semibold">{stats?.membershipUsers ?? "—"}</p>
               </div>
             </div>
-            <div>
-              <Line
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { position: "bottom" },
-                    title: {
-                      display: true,
-                      text: "Total token AI per bulan",
-                      font: { size: 14 },
-                    },
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: { precision: 0 },
-                    },
-                  },
-                }}
-                data={{
-                  labels: monthlyTrend.labels,
-                  datasets: [
-                    {
-                      label: "Total Token AI",
-                      data: monthlyTrend.totals,
-                      fill: true,
-                      backgroundColor: "rgba(37, 99, 235, 0.15)",
-                      borderColor: "rgba(37, 99, 235, 0.9)",
-                      tension: 0.3,
-                      pointRadius: 4,
-                      pointBackgroundColor: "rgba(37, 99, 235, 0.9)",
-                    },
-                  ],
-                }}
-              />
+            <div className="grid gap-3 sm:grid-cols-2 mt-3">
+              <div className="rounded-3xl bg-emerald-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Total Koin</p>
+                <p className="mt-2 text-3xl font-semibold">{stats?.totalCoins ?? "—"}</p>
+              </div>
+              <div className="rounded-3xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-700">Konten Tersimpan</p>
+                <p className="mt-2 text-3xl font-semibold">{stats?.contentCount ?? "—"}</p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-border bg-background">
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-amber-500" />
+              <div>
+                <p className="text-sm font-semibold">Kesehatan Sistem</p>
+                <p className="text-xs text-muted-foreground">Semua layanan platform berjalan normal.</p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Autentikasi</p>
+                <p className="mt-2 font-semibold">Berhasil</p>
+              </div>
+              <div className="rounded-2xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Database</p>
+                <p className="mt-2 font-semibold">Tersambung</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bar chart statistik */}
+      <Card className="border border-border bg-background">
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Statistik</p>
+            <h2 className="text-xl font-semibold">Ringkasan Kinerja</h2>
+          </div>
+          <Bar
+            options={{
+              responsive: true,
+              plugins: {
+                legend: { position: "bottom" },
+                title: {
+                  display: true,
+                  text: "Perbandingan Pengguna dan Konten",
+                  font: { size: 14 },
+                },
+              },
+              scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+              },
+            }}
+            data={{
+              labels: ["Pengguna", "Admin", "Diblokir", "Membership", "Konten", "Koin"],
+              datasets: [
+                {
+                  label: "Jumlah",
+                  data: [
+                    stats?.totalUsers ?? 0,
+                    stats?.adminCount ?? 0,
+                    stats?.bannedUsers ?? 0,
+                    stats?.membershipUsers ?? 0,
+                    stats?.contentCount ?? 0,
+                    stats?.totalCoins ?? 0,
+                  ],
+                  backgroundColor: [
+                    "rgba(59,130,246,0.75)",
+                    "rgba(16,185,129,0.75)",
+                    "rgba(245,158,11,0.75)",
+                    "rgba(123,63,248,0.75)",
+                    "rgba(14,165,233,0.75)",
+                    "rgba(248,113,113,0.75)",
+                  ],
+                  borderRadius: 12,
+                },
+              ],
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Monitor AI + Tren Bulanan — side by side */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Monitor AI */}
+        <Card className="border border-border bg-background">
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Monitor AI</p>
+              <h2 className="text-xl font-semibold">Penggunaan AI Terakhir</h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total Event AI</p>
+                <p className="mt-2 text-3xl font-semibold">{monitoring?.aiUsageSummary.totalEvents ?? "—"}</p>
+              </div>
+              <div className="rounded-3xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total Token</p>
+                <p className="mt-2 text-3xl font-semibold">{monitoring?.aiUsageSummary.totalTokens ?? "—"}</p>
+              </div>
+              <div className="rounded-3xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Kuota Terakhir</p>
+                <p className="mt-2 text-3xl font-semibold">{monitoring?.aiUsageSummary.latestQuotaRemaining ?? "—"}</p>
+              </div>
+              <div className="rounded-3xl bg-slate-950/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Terakhir Dipakai</p>
+                <p className="mt-2 text-sm font-semibold">
+                  {monitoring?.aiUsageSummary.latestUsageAt
+                    ? new Date(monitoring.aiUsageSummary.latestUsageAt).toLocaleString("id-ID", {
+                        day: "2-digit", month: "short", year: "numeric",
+                        hour: "2-digit", minute: "2-digit",
+                      })
+                    : "—"}
+                </p>
+              </div>
+            </div>
+            {hasAiLogs ? (
+              <div className="flex justify-center">
+                <div className="w-64 h-64">
+                  <Pie
+                    options={{
+                      responsive: true,
+                      plugins: {
+                        legend: { position: "bottom" },
+                        title: { display: true, text: "Token AI per event", font: { size: 13 } },
+                      },
+                    }}
+                    data={{
+                      labels: monitoring!.aiUsageLogs.map((item) =>
+                        new Date(item.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+                      ),
+                      datasets: [
+                        {
+                          label: "Total Token",
+                          data: monitoring!.aiUsageLogs.map((item) => item.total_tokens ?? 0),
+                          backgroundColor: PIE_COLORS,
+                          borderWidth: 1,
+                        },
+                      ],
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-40 rounded-2xl border border-dashed border-border text-sm text-muted-foreground">
+                Belum ada data penggunaan AI
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Tren Bulanan */}
+        <Card className="border border-border bg-background">
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Tren Bulanan</p>
+              <h2 className="text-xl font-semibold">Penggunaan AI Bulanan</h2>
+            </div>
+            {hasMonthlyTrend ? (
+              <div className="flex justify-center">
+                <div className="w-64 h-64">
+                  <Pie
+                    options={{
+                      responsive: true,
+                      plugins: {
+                        legend: { position: "bottom" },
+                        title: { display: true, text: "Total token AI per bulan", font: { size: 13 } },
+                      },
+                    }}
+                    data={{
+                      labels: monthlyTrend.labels,
+                      datasets: [
+                        {
+                          label: "Total Token AI",
+                          data: monthlyTrend.totals,
+                          backgroundColor: PIE_COLORS,
+                          borderWidth: 1,
+                        },
+                      ],
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-40 rounded-2xl border border-dashed border-border text-sm text-muted-foreground">
+                Belum ada data tren bulanan
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -565,6 +560,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* Manajemen Pengguna + Sidebar */}
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <section id="users" className="space-y-4">
           <div className="flex items-center justify-between gap-4">
@@ -586,8 +582,7 @@ export default function AdminDashboardPage() {
 
           <div className="overflow-x-auto rounded-3xl border border-border bg-background">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                <tr>
+              <thead className="bg-emerald-50 text-left text-xs uppercase tracking-[0.2em] text-emerald-700">                <tr>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Nama</th>
                   <th className="px-4 py-3">Role</th>
@@ -609,29 +604,23 @@ export default function AdminDashboardPage() {
                       <td className="px-4 py-4 font-medium">{subject.email}</td>
                       <td className="px-4 py-4">{subject.name}</td>
                       <td className="px-4 py-4">
-                        <Badge variant={subject.role.toLowerCase().includes('admin') ? 'secondary' : 'outline'}>
+                        <Badge variant={subject.role.toLowerCase().includes("admin") ? "secondary" : "outline"}>
                           {subject.role}
                         </Badge>
                       </td>
                       <td className="px-4 py-4">
-                        <Badge variant={(subject.isBanned ?? subject.is_banned) ? 'destructive' : 'outline'}>
-                          {(subject.isBanned ?? subject.is_banned) ? 'Diblokir' : 'Aktif'}
+                        <Badge variant={(subject.isBanned ?? subject.is_banned) ? "destructive" : "outline"}>
+                          {(subject.isBanned ?? subject.is_banned) ? "Diblokir" : "Aktif"}
                         </Badge>
                       </td>
                       <td className="px-4 py-4">{subject.coins ?? 0}</td>
                       <td className="px-4 py-4 space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => handleRoleChange(subject)}>
-                          Ubah Role
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => handleCoinsUpdate(subject)}>
-                          Koin
-                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleRoleChange(subject)}>Ubah Role</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleCoinsUpdate(subject)}>Koin</Button>
                         <Button size="sm" variant="ghost" onClick={() => handleBanToggle(subject)}>
-                          {(subject.isBanned ?? subject.is_banned) ? 'Batal Blokir' : 'Blokir'}
+                          {(subject.isBanned ?? subject.is_banned) ? "Batal Blokir" : "Blokir"}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleResetPassword(subject)}>
-                          Reset PW
-                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleResetPassword(subject)}>Reset PW</Button>
                       </td>
                     </tr>
                   ))
@@ -658,9 +647,7 @@ export default function AdminDashboardPage() {
                     <p className="text-xs text-muted-foreground">{formatDate(item.created_at)}</p>
                     <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{item.content ?? "Konten tidak tersedia."}</p>
                     <div className="mt-3 flex items-center gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteContent(item.id)}>
-                        Hapus
-                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDeleteContent(item.id)}>Hapus</Button>
                     </div>
                   </div>
                 ))}

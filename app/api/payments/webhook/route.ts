@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     await updateOne('transactions', { invoice_number: external_id }, {
       payment_status: newStatus,
       paid_at:        newStatus === 'success' ? (paid_at ?? new Date().toISOString()) : null,
-      payment_method: payment_method ?? tx.payment_method,
+      payment_method: payment_method ?? transaction.payment_method,
     })
 
     // ── 5. Kalau PAID → kredit coins ke user ──

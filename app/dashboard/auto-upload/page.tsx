@@ -124,8 +124,9 @@ const PLATFORM_META: PlatformMeta[] = [
   },
   {
     id: "tiktok", name: "TikTok", color: "#010101", Icon: TikTokIcon,
-    connectLabel: "Masuk dengan TikTok",
-    connectHint: "Hubungkan akun TikTok kamu untuk menjadwalkan video secara otomatis.",
+    uiOnly: true,
+    connectLabel: "Segera hadir",
+    connectHint: "Segera hadir.",
     usernameLabel: "Username TikTok",
     usernamePlaceholder: "@namakamu",
     postTypes: ["video"],
@@ -140,8 +141,9 @@ const PLATFORM_META: PlatformMeta[] = [
   },
   {
     id: "twitter", name: "X (Twitter)", color: "#14171A", Icon: X,
-    connectLabel: "Masuk dengan X",
-    connectHint: "Hubungkan akun X (Twitter) kamu untuk menjadwalkan tweet dan thread.",
+    uiOnly: true,
+    connectLabel: "Segera hadir",
+    connectHint: "Segera hadir.",
     usernameLabel: "Username X",
     usernamePlaceholder: "@namakamu",
     postTypes: ["tweet"],
@@ -571,7 +573,7 @@ export default function AutoUploadPage() {
                       uiOnly ? "text-amber-600 dark:text-amber-400" : "text-primary"
                     )}
                   >
-                    <Link2 className="h-3 w-3" /> Hubungkan
+                    <Link2 className="h-3 w-3" /> {uiOnly ? "Segera hadir" : "Hubungkan"}
                   </button>
                 )}
               </div>

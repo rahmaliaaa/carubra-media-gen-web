@@ -246,21 +246,21 @@ export default function MemberPage() {
 
               <div className="space-y-1">
                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-600 font-medium">
-                  Paket Token
+                  {t('Paket Token')}
                 </p>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Pilih paket yang sesuai
+                  {t('Paket token untuk semua kebutuhan Anda')}
                 </h2>
               </div>
 
               <p className="text-sm text-gray-500 leading-relaxed">
-                Semakin besar paket yang kamu pilih, semakin murah biaya per token — lebih hemat untuk penggunaan rutin.
+                {t('Dengan paket token kami, Anda mendapatkan akses instan ke berbagai fitur premium. Token dapat digunakan untuk meningkatkan pengalaman Anda, membuka fitur eksklusif, dan mendapatkan dukungan prioritas. Pilih paket yang sesuai dengan kebutuhan Anda dan nikmati manfaatnya sekarang!')}
               </p>
 
               <div className="flex items-start gap-3 rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3">
                 <span className="text-base mt-0.5">🔒</span>
                 <p className="text-sm text-emerald-800 leading-relaxed">
-                  Pembayaran aman melalui <span className="font-semibold">Xendit</span> — mendukung transfer bank, QRIS, e-wallet, dan kartu kredit.
+                  {t('member.securePayment')} <span className="font-semibold">Xendit</span> — {t('member.paymentMethods')}
                 </p>
               </div>
 
@@ -274,14 +274,14 @@ export default function MemberPage() {
                     }, 100)
                   }}
                 >
-                  Lihat Paket
+                  {t('member.viewPackages')}
                 </Button>
                 <Button
                   variant="ghost"
                   className="rounded-xl text-gray-500"
                   onClick={() => setShowWelcomeModal(false)}
                 >
-                  Nanti saja
+                  {t('member.later')}
                 </Button>
               </div>
             </div>
@@ -302,31 +302,31 @@ export default function MemberPage() {
           <CardContent className="space-y-6">
             <div>
               <p className="text-sm uppercase tracking-[0.2em] text-emerald-200">
-                Saldo Token
+                {t('member.balanceTitle')}
               </p>
               <h2 className="mt-3 text-4xl font-semibold">
                 {coinBalance === null ? "— TOKEN" : `${coinBalance} TOKEN`}
               </h2>
               <p className="mt-2 text-sm text-emerald-100">
-                Gunakan token untuk upload otomatis, analisis konten, dan promosi.
+                {t('member.balanceDescription')}
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl bg-emerald-900/80 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-emerald-200">
-                  Status
+                  {t('member.statusLabel')}
                 </p>
                 <p className="mt-2 text-xl font-semibold">
                   {coinBalance !== null && coinBalance > 0
-                    ? "Aktif"
-                    : "Belum ada token"}
+                    ? t('member.active')
+                    : t('member.noTokens')}
                 </p>
               </div>
               <div className="rounded-2xl bg-emerald-900/80 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-emerald-200">
-                  Last top-up
+                  {t('member.lastTopup')}
                 </p>
-                <p className="mt-2 text-xl font-semibold">{lastTopup ?? "—"}</p>
+                <p className="mt-2 text-xl font-semibold">{lastTopup ?? '—'}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -375,10 +375,10 @@ export default function MemberPage() {
       {/* ── Packages ── */}
       <section id="packages" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {loadingPkg ? (
-          <p className="text-sm text-muted-foreground col-span-3">Memuat paket…</p>
+          <p className="text-sm text-muted-foreground col-span-3">{t('member.loadingPackages')}</p>
         ) : packageOptions.length === 0 ? (
           <p className="text-sm text-muted-foreground col-span-3">
-            Belum ada paket tersedia.
+            {t('member.noPackages')}
           </p>
         ) : (
           packageOptions.map((option) => (
@@ -508,25 +508,25 @@ export default function MemberPage() {
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          Paket
+                          {t('member.packageLabel')}
                         </p>
                         <p className="font-medium">{tx.title}</p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          Token
+                          {t('member.tokenLabel')}
                         </p>
                         <p className="font-medium">{tx.coins} token</p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          Harga
+                          {t('member.priceLabel')}
                         </p>
                         <p className="font-medium">{tx.priceLabel}</p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                          Status
+                          {t('member.statusLabel')}
                         </p>
                         <Badge
                           variant={statusVariant[tx.status]}

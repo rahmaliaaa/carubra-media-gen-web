@@ -7,6 +7,7 @@ export interface JwtUser {
   id: string
   email: string
   name: string
+  role?: string
 }
 
 export function generateToken(user: JwtUser): string {

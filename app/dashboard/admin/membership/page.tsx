@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/contexts/language-context"
 
 type TransactionStatus = "success" | "paid" | "pending" | "failed" | "expired" | "refunded"
 
@@ -79,7 +80,7 @@ export default function AdminInvoicesPage() {
       if (!res.ok) throw new Error(data.error)
       setTransactions(data.transactions ?? [])
       // Tambah sementara di fetchData setelah setTransactions
-      console.log(data.transactions.map(tx => ({ id: tx.invoiceId, url: tx.invoiceUrl })))
+      console.log(data.transactions.map((tx: AdminTransaction) => ({ id: tx.invoiceId, url: tx.invoiceUrl })))
       setSummary(data.summary ?? null)
     } catch (err) {
       console.error('[AdminInvoicesPage]', err)
@@ -117,10 +118,12 @@ export default function AdminInvoicesPage() {
     setFiltered(result)
   }, [transactions, statusFilter, startDate, endDate, search])
 
+  const { t } = useLanguage()
+
   const handleExportCsv = async () => {
     try {
       setExporting(true)
-      const headers = ['Invoice ID', 'User ID', 'Paket', 'Token', 'Amount (IDR)', 'Metode', 'Status', 'Tanggal Buat', 'Tanggal Bayar']
+      const headers = [t('admin.exportInvoiceId'), t('admin.exportUserId'), t('admin.exportPackage'), t('admin.exportToken'), t('admin.exportAmount'), t('admin.exportMethod'), t('admin.exportStatus'), t('admin.exportCreatedAt'), t('admin.exportPaidAt')]
       const rows = filtered.map(tx => [
         tx.invoiceId,
         tx.userId,
@@ -162,35 +165,32 @@ export default function AdminInvoicesPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <button onClick={() => router.push('/dashboard/admin/membership')} className="text-xs text-muted-foreground hover:text-foreground mb-2 block">
-            ← Kembali ke Membership
-          </button>
-          <h1 className="text-2xl font-bold">Invoice & Transaksi</h1>
-          <p className="text-sm text-muted-foreground mt-1">Kelola dan ekspor seluruh transaksi pembelian token.</p>
+          <h1 className="text-2xl font-bold">{t('admin.invoiceTransactionsTitle')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('admin.invoiceTransactionsDescription')}</p>
         </div>
         <Button onClick={handleExportCsv} disabled={exporting || filtered.length === 0} variant="outline" size="sm">
-          {exporting ? 'Mengekspor…' : `⬇ Export CSV (${filtered.length})`}
+          {exporting ? t('admin.exporting') : `${t('admin.exportCsv')} (${filtered.length})`}
         </Button>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Pendapatan</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.revenue')}</p>
           <p className="text-xl font-bold text-emerald-700">{formatIDR(filteredSummary.revenue)}</p>
-          <p className="text-xs text-muted-foreground">{filteredSummary.success} berhasil</p>
+          <p className="text-xs text-muted-foreground">{filteredSummary.success} {t('admin.successful')}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Ditampilkan</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.displayed')}</p>
           <p className="text-xl font-bold">{filteredSummary.total}</p>
-          <p className="text-xs text-muted-foreground">dari {transactions.length} total</p>
+          <p className="text-xs text-muted-foreground">{t('admin.ofTotal', { count: transactions.length })}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Menunggu</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.waiting')}</p>
           <p className="text-xl font-bold text-amber-600">{filteredSummary.pending}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Gagal</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.failed')}</p>
           <p className="text-xl font-bold text-destructive">
             {filtered.filter(tx => tx.status === 'failed' || tx.status === 'refunded').length}
           </p>
@@ -201,42 +201,42 @@ export default function AdminInvoicesPage() {
       <Card><CardContent className="pt-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cari</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.search')}</label>
             <input
               type="text"
-              placeholder="Invoice ID / User ID / Paket"
+              placeholder={t('admin.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.status')}</label>
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="all">Semua</option>
-              <option value="success">Berhasil</option>
-              <option value="pending">Menunggu</option>
-              <option value="failed">Gagal</option>
-              <option value="expired">Kedaluwarsa</option>
+              <option value="all">{t('admin.statusAll')}</option>
+              <option value="success">{t('admin.statusSuccess')}</option>
+              <option value="pending">{t('admin.statusPending')}</option>
+              <option value="failed">{t('admin.statusFailed')}</option>
+              <option value="expired">{t('admin.statusExpired')}</option>
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dari</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.dateFrom')}</label>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sampai</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.dateTo')}</label>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           {(statusFilter !== 'all' || startDate || endDate || search) && (
             <Button size="sm" variant="ghost" onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate(''); setSearch('') }}>
-              Reset
+              {t('admin.reset')}
             </Button>
           )}
         </div>

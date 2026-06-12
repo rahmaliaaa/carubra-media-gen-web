@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/contexts/language-context"
 
 type TransactionStatus = "success" | "paid" | "pending" | "failed" | "expired" | "refunded"
 
@@ -40,21 +41,9 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
   expired: 'outline',
 }
 
-const statusLabel: Record<string, string> = {
-  success:  'Berhasil',
-  paid:     'Berhasil',
-  pending:  'Menunggu',
-  failed:   'Gagal',
-  refunded: 'Refund',
-  expired:  'Kedaluwarsa',
-}
-
-function formatIDR(amount: number) {
-  return `Rp ${Number(amount).toLocaleString('id-ID')}`
-}
-
 export default function AdminInvoicesPage() {
   const router = useRouter()
+  const { t, language } = useLanguage()
   const [transactions, setTransactions] = useState<AdminTransaction[]>([])
   const [filtered, setFiltered] = useState<AdminTransaction[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -66,6 +55,19 @@ export default function AdminInvoicesPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [search, setSearch] = useState('')
+
+  const locale = language === 'en' ? 'en-US' : 'id-ID'
+
+  const statusLabelMap: Record<string, string> = {
+    success: t('admin.statusSuccess'),
+    paid: t('admin.statusSuccess'),
+    pending: t('admin.statusPending'),
+    failed: t('admin.statusFailed'),
+    refunded: t('admin.refunded'),
+    expired: t('admin.statusExpired'),
+  }
+
+  const formatIDR = (amount: number) => `Rp ${Number(amount).toLocaleString(locale)}`
 
   const fetchData = useCallback(async () => {
     try {
@@ -117,7 +119,17 @@ export default function AdminInvoicesPage() {
   const handleExportCsv = async () => {
     try {
       setExporting(true)
-      const headers = ['Invoice ID', 'User ID', 'Paket', 'Token', 'Amount (IDR)', 'Metode', 'Status', 'Tanggal Buat', 'Tanggal Bayar']
+      const headers = [
+        t('admin.exportInvoiceId'),
+        t('admin.exportUserId'),
+        t('admin.exportPackage'),
+        t('admin.exportToken'),
+        t('admin.exportAmount'),
+        t('admin.exportMethod'),
+        t('admin.exportStatus'),
+        t('admin.exportCreatedAt'),
+        t('admin.exportPaidAt'),
+      ]
       const rows = filtered.map(tx => [
         tx.invoiceId,
         tx.userId,
@@ -125,9 +137,9 @@ export default function AdminInvoicesPage() {
         tx.coins,
         tx.amount,
         tx.paymentMethod,
-        tx.status,
-        tx.createdAt ? new Date(tx.createdAt).toLocaleString('id-ID') : '-',
-        tx.paidAt ? new Date(tx.paidAt).toLocaleString('id-ID') : '-',
+        statusLabelMap[tx.status] ?? tx.status,
+        tx.createdAt ? new Date(tx.createdAt).toLocaleString(locale) : '-',
+        tx.paidAt ? new Date(tx.paidAt).toLocaleString(locale) : '-',
       ])
       const csv = [
         headers.join(','),
@@ -159,35 +171,32 @@ export default function AdminInvoicesPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <button onClick={() => router.push('/dashboard/admin/membership')} className="text-xs text-muted-foreground hover:text-foreground mb-2 block">
-            ← Kembali ke Membership
-          </button>
-          <h1 className="text-2xl font-bold">Invoice & Transaksi</h1>
-          <p className="text-sm text-muted-foreground mt-1">Kelola dan ekspor seluruh transaksi pembelian token.</p>
+          <h1 className="text-2xl font-bold">{t('admin.invoiceTransactionsTitle')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('admin.invoiceTransactionsDescription')}</p>
         </div>
         <Button onClick={handleExportCsv} disabled={exporting || filtered.length === 0} variant="outline" size="sm">
-          {exporting ? 'Mengekspor…' : `⬇ Export CSV (${filtered.length})`}
+          {exporting ? t('admin.exporting') : `${t('admin.exportCsv')} (${filtered.length})`}
         </Button>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Pendapatan</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.revenue')}</p>
           <p className="text-xl font-bold text-emerald-700">{formatIDR(filteredSummary.revenue)}</p>
-          <p className="text-xs text-muted-foreground">{filteredSummary.success} berhasil</p>
+          <p className="text-xs text-muted-foreground">{filteredSummary.success} {t('admin.successful')}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Ditampilkan</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.displayed')}</p>
           <p className="text-xl font-bold">{filteredSummary.total}</p>
-          <p className="text-xs text-muted-foreground">dari {transactions.length} total</p>
+          <p className="text-xs text-muted-foreground">{t('admin.ofTotal', { count: transactions.length })}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Menunggu</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.waiting')}</p>
           <p className="text-xl font-bold text-amber-600">{filteredSummary.pending}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Gagal</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{t('admin.failed')}</p>
           <p className="text-xl font-bold text-destructive">
             {filtered.filter(tx => tx.status === 'failed' || tx.status === 'refunded').length}
           </p>
@@ -198,42 +207,42 @@ export default function AdminInvoicesPage() {
       <Card><CardContent className="pt-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cari</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.search')}</label>
             <input
               type="text"
-              placeholder="Invoice ID / User ID / Paket"
+              placeholder={t('admin.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.status')}</label>
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="all">Semua</option>
-              <option value="success">Berhasil</option>
-              <option value="pending">Menunggu</option>
-              <option value="failed">Gagal</option>
-              <option value="expired">Kedaluwarsa</option>
+              <option value="all">{t('admin.statusAll')}</option>
+              <option value="success">{t('admin.statusSuccess')}</option>
+              <option value="pending">{t('admin.statusPending')}</option>
+              <option value="failed">{t('admin.statusFailed')}</option>
+              <option value="expired">{t('admin.statusExpired')}</option>
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dari</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.dateFrom')}</label>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sampai</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('admin.dateTo')}</label>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           {(statusFilter !== 'all' || startDate || endDate || search) && (
             <Button size="sm" variant="ghost" onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate(''); setSearch('') }}>
-              Reset
+              {t('admin.reset')}
             </Button>
           )}
         </div>
@@ -242,12 +251,12 @@ export default function AdminInvoicesPage() {
       {/* Transaction list */}
       {loading ? (
         <Card className="p-8 text-center">
-          <p className="text-sm text-muted-foreground">Memuat transaksi…</p>
+          <p className="text-sm text-muted-foreground">{t('member.loadingTransactions')}</p>
         </Card>
       ) : filtered.length === 0 ? (
         <Card className="p-8 text-center border-dashed">
-          <p className="font-semibold">Tidak ada transaksi</p>
-          <p className="text-sm text-muted-foreground mt-1">Coba ubah filter.</p>
+          <p className="font-semibold">{t('member.noTransactions')}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('member.emptyTransactionsDescription')}</p>
         </Card>
       ) : (
         <div className="space-y-2">
@@ -258,36 +267,36 @@ export default function AdminInvoicesPage() {
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={statusVariant[tx.status] ?? 'outline'}>
-                        {statusLabel[tx.status] ?? tx.status}
+                        {statusLabelMap[tx.status] ?? tx.status}
                       </Badge>
                       <span className="font-mono text-xs text-muted-foreground">{tx.invoiceId}</span>
                       {tx.createdAt && (
                         <span className="text-xs text-muted-foreground">
-                          · {new Date(tx.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          · {new Date(tx.createdAt).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })}
                         </span>
                       )}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-sm">
                       <div>
-                        <p className="text-xs text-muted-foreground">Paket</p>
+                        <p className="text-xs text-muted-foreground">{t('member.packageLabel')}</p>
                         <p className="font-medium">{tx.packageName}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Token</p>
+                        <p className="text-xs text-muted-foreground">{t('member.tokenLabel')}</p>
                         <p className="font-medium">{tx.coins}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Amount</p>
+                        <p className="text-xs text-muted-foreground">{t('member.priceLabel')}</p>
                         <p className="font-semibold">{formatIDR(tx.amount)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">User ID</p>
+                        <p className="text-xs text-muted-foreground">{t('admin.exportUserId')}</p>
                         <p className="font-mono text-xs truncate max-w-[120px]">{tx.userId}</p>
                       </div>
                     </div>
                     {tx.paidAt && (
                       <p className="text-xs text-muted-foreground">
-                        Dibayar: {new Date(tx.paidAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {t('member.paidAt')}: {new Date(tx.paidAt).toLocaleString(locale, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </p>
                     )}
                   </div>
@@ -295,7 +304,7 @@ export default function AdminInvoicesPage() {
                     {tx.invoiceUrl && (
                       <Button size="sm" variant="outline" asChild className="text-xs">
                         <a href={tx.invoiceUrl} target="_blank" rel="noopener noreferrer">
-                          Buka Invoice
+                          {t('member.viewProof')}
                         </a>
                       </Button>
                     )}
@@ -309,7 +318,7 @@ export default function AdminInvoicesPage() {
 
       {filtered.length > 0 && (
         <p className="text-xs text-muted-foreground text-center">
-          Menampilkan {filtered.length} transaksi
+          {t('member.transactionCount', { count: filtered.length })}
         </p>
       )}
     </div>
