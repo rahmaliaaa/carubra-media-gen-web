@@ -561,8 +561,8 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Manajemen Pengguna + Sidebar */}
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <section id="users" className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[20fr_0fr]">
+        <section id="users" className="space-y-3">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Pengguna</p>
@@ -581,13 +581,13 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="overflow-x-auto rounded-3xl border border-border bg-background">
-            <table className="min-w-full border-separate border-spacing-0 text-sm">
+            <table className="w-full table-fixed border-separate border-spacing-0 text-xs">
               <thead className="bg-emerald-50 text-left text-xs uppercase tracking-[0.2em] text-emerald-700">                <tr>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Nama</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Koin</th>
+                  <th className="px-2 py-1">Koin</th>
                   <th className="px-4 py-3">Aksi</th>
                 </tr>
               </thead>
@@ -614,13 +614,13 @@ export default function AdminDashboardPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-4">{subject.coins ?? 0}</td>
-                      <td className="px-4 py-4 space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => handleRoleChange(subject)}>Ubah Role</Button>
-                        <Button size="sm" variant="secondary" onClick={() => handleCoinsUpdate(subject)}>Koin</Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleBanToggle(subject)}>
-                          {(subject.isBanned ?? subject.is_banned) ? "Batal Blokir" : "Blokir"}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleResetPassword(subject)}>Reset PW</Button>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleRoleChange(subject)}>Ubah Role</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleCoinsUpdate(subject)}>Koin</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleBanToggle(subject)}>{(subject.isBanned ?? subject.is_banned) ? "Batal Blokir" : "Blokir"}</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleResetPassword(subject)}>Reset PW</Button>
+                        </div>  
                       </td>
                     </tr>
                   ))
@@ -629,81 +629,6 @@ export default function AdminDashboardPage() {
             </table>
           </div>
         </section>
-
-        <aside className="space-y-4">
-          <Card id="content" className="border border-border bg-background">
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-sky-600" />
-                <div>
-                  <p className="text-sm font-semibold">Manajemen Konten</p>
-                  <p className="text-xs text-muted-foreground">Kelola generated content yang telah tersimpan.</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {contents.slice(0, 6).map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-border p-3">
-                    <p className="font-semibold truncate">{item.title || "(Tanpa judul)"}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(item.created_at)}</p>
-                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{item.content ?? "Konten tidak tersedia."}</p>
-                    <div className="mt-3 flex items-center gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteContent(item.id)}>Hapus</Button>
-                    </div>
-                  </div>
-                ))}
-                {contents.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Belum ada konten untuk ditampilkan.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card id="membership" className="border border-border bg-background">
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <BarChart2 className="h-5 w-5 text-emerald-500" />
-                <div>
-                  <p className="text-sm font-semibold">Manajemen Membership & Transaksi</p>
-                  <p className="text-xs text-muted-foreground">Pantau status membership, transaksi, dan status pembayaran.</p>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-border bg-slate-950/40 p-4 text-sm text-muted-foreground">
-                Fitur transaksi belum diimplementasikan penuh. Untuk sekarang, gunakan data membership dari tabel pengguna dan history pembayaran jika tersedia.
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card id="pricing" className="border border-border bg-background">
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <DollarSign className="h-5 w-5 text-amber-500" />
-                <div>
-                  <p className="text-sm font-semibold">Manajemen Koin & Pricing</p>
-                  <p className="text-xs text-muted-foreground">Atur harga koin, saldo, dan paket pembayaran.</p>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-border bg-slate-950/40 p-4 text-sm text-muted-foreground">
-                Fitur harga koin dan paket belum tersedia di dashboard. Nanti bisa ditambahkan sebagai halaman admin baru.
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card id="system" className="border border-border bg-background">
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Settings className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-semibold">Pengaturan Sistem</p>
-                  <p className="text-xs text-muted-foreground">Pengaturan platform dapat disesuaikan dari database dan environment.</p>
-                </div>
-              </div>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p><span className="font-semibold">Auth:</span> Token JWT aktif</p>
-                <p><span className="font-semibold">Supabase:</span> Tergantung konfigurasi environment.</p>
-              </div>
-            </CardContent>
-          </Card>
-        </aside>
       </div>
     </div>
   )

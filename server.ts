@@ -12,6 +12,7 @@ import generatedContentsRouter from './api/routes/generated-contents.js'
 import contentAnalysisRouter from './api/routes/content-analysis.js'
 import paymentRoutes from './api/routes/payments.js'
 import { startContentAnalysisWorker } from './workers/contentAnalysisWorker.js'
+import { startScheduledPostsWorker } from './workers/scheduledPostsWorker.js'
 
 const dev = process.env.NODE_ENV !== 'production'
 const nextApp = next({ dev })
@@ -69,6 +70,7 @@ async function main() {
   server.all(/^(?!\/api).*$/, (req, res) => handle(req, res))
 
   startContentAnalysisWorker()
+  startScheduledPostsWorker()
 
   server.listen(port, () => {
     console.log(`🚀 Carubra Media Generator running on http://localhost:${port}`)

@@ -75,3 +75,24 @@ export async function deleteOne(table: string, filter: Record<string, any>): Pro
   if (error) throw error
   return true
 }
+
+export async function uploadToStorage(
+  bucket: string,
+  path: string,
+  file: Buffer | Blob | File | Uint8Array,
+  options?: { contentType?: string; cacheControl?: string }
+): Promise<string> {
+  const supabase = await getSupabaseAdmin()
+  const storage = supabase.storage.from(bucket)
+  const { data, error } = await storage.upload(path, file, {
+    contentType: options?.contentType,
+    cacheControl: options?.cacheControl,
+    upsert: true,
+  })
+  if (error) throw error
+  const { data: urlData } = storage.getPublicUrl(path)
+  if (!urlData?.publicUrl) {
+    throw new Error('Failed to get public URL for uploaded file')
+  }
+  return urlData.publicUrl
+}

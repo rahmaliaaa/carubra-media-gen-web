@@ -95,6 +95,58 @@ function normalizeJsonText(text: string) {
 	return t
 }
 
+function repairTruncatedJson(text: string): any {
+	// Analyze which brackets/strings are still open, then close them
+	let inString = false
+	let escaped = false
+	const stack: string[] = []
+	for (let i = 0; i < text.length; i++) {
+		const ch = text[i]
+		if (escaped) { escaped = false; continue }
+		if (ch === '\\' && inString) { escaped = true; continue }
+		if (ch === '"') {
+			if (inString) { inString = false }
+			else { inString = true }
+			continue
+		}
+		if (inString) continue
+		if (ch === '{') stack.push('}')
+		else if (ch === '[') stack.push(']')
+		else if (ch === '}' || ch === ']') stack.pop()
+	}
+
+	// Build suffix to close everything that's open
+	let suffix = ''
+	if (inString) suffix += '"'
+	for (let i = stack.length - 1; i >= 0; i--) {
+		suffix += stack[i]
+	}
+
+	// Remove trailing partial tokens (e.g. a trailing comma or colon before we close)
+	let base = text.trimEnd()
+	// Remove trailing comma that would be invalid before a closing bracket
+	base = base.replace(/,\s*$/, '')
+
+	const attempt = base + suffix
+	try {
+		return JSON.parse(attempt)
+	} catch {}
+
+	// Also try closing an open string value first
+	const attempt2 = base + '"' + suffix
+	try {
+		return JSON.parse(attempt2)
+	} catch {}
+
+	// Try with null for the truncated value
+	const attempt3 = base.replace(/:\s*"[^"]*$/, ': null') + suffix
+	try {
+		return JSON.parse(attempt3)
+	} catch {}
+
+	return null
+}
+
 function robustParseJsonFromText(text: string) {
 	const cleaned = normalizeJsonText(text)
 	try {
@@ -102,26 +154,17 @@ function robustParseJsonFromText(text: string) {
 	} catch {
 		const block = extractJsonBlock(text)
 		if (!block) {
+			// No complete JSON block found — may be truncated, try repairing the full text
+			const repaired = repairTruncatedJson(normalizeJsonText(text))
+			if (repaired) return repaired
 			throw new Error("AI tidak mengembalikan JSON yang bisa diekstrak. Response: " + text.slice(0, 600))
 		}
 		const normalizedBlock = normalizeJsonText(block)
 		try {
 			return JSON.parse(normalizedBlock)
 		} catch {
-			let attempt = normalizedBlock
-			for (let i = 0; i < 6; i++) {
-				attempt += '}'
-				try {
-					return JSON.parse(attempt)
-				} catch {}
-			}
-			attempt = normalizedBlock + '"'
-			for (let i = 0; i < 6; i++) {
-				attempt += '}'
-				try {
-					return JSON.parse(attempt)
-				} catch {}
-			}
+			const repaired = repairTruncatedJson(normalizedBlock)
+			if (repaired) return repaired
 			throw new Error("AI tidak mengembalikan JSON valid. Response: " + normalizedBlock.slice(0, 600))
 		}
 	}
@@ -294,7 +337,8 @@ export async function POST(req: NextRequest) {
 			},
 			body: JSON.stringify({
 				model: 'google/gemini-2.5-flash',
-				max_tokens: 2000,
+				max_tokens: 4096,
+				temperature: 0.7,
 				response_format: { type: 'json_object' },
 				system: CONTENT_STRATEGY_SYSTEM_PROMPT,
 				messages: [{ role: 'user', content: userMessage }],
@@ -307,8 +351,12 @@ export async function POST(req: NextRequest) {
 		}
 
 		const aiData = await aiResponse.json()
+		const finishReason = aiData?.choices?.[0]?.finish_reason
 		let rawText: any = aiData?.choices?.[0]?.message?.content
 		console.log('[content-analysis rawText]', typeof rawText, typeof rawText === 'string' && rawText.slice ? rawText.slice(0, 1000) : rawText)
+		if (finishReason === 'length') {
+			console.warn('[content-analysis] Response truncated (finish_reason=length), will attempt repair')
+		}
 
 		let parsed: any
 		if (rawText === undefined || rawText === null) {

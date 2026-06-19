@@ -26,8 +26,20 @@ export async function POST(req: NextRequest) {
   try {
     const { platform, username } = await req.json()
 
+    const supportedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'twitter', 'threads', 'whatsapp']
     if (!platform || !username) {
       return NextResponse.json({ error: 'Platform and username are required' }, { status: 400 })
+    }
+
+    if (!supportedPlatforms.includes(platform)) {
+      return NextResponse.json({ error: `Platform ${platform} is not supported.`, status: 400 })
+    }
+
+    if (platform === 'whatsapp') {
+      const gowaClientId = process.env.GOWA_CLIENT_ID
+      if (!gowaClientId) {
+        return NextResponse.json({ error: 'GOWA_CLIENT_ID tidak dikonfigurasi. Hubungi developer.' }, { status: 500 })
+      }
     }
 
     const doc = {
@@ -35,7 +47,7 @@ export async function POST(req: NextRequest) {
       platform,
       account_username: username,
       account_id: username,
-      access_token: 'manual',
+      access_token: platform === 'whatsapp' ? process.env.GOWA_CLIENT_ID : 'manual',
       status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

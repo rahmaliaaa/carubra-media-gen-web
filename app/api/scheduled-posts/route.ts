@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUserFromRequest } from '@/middleware/auth'
-import { find, insert } from '@/lib/supabase'
+import { getUserFromRequest } from '../../../middleware/auth'
+import { find, insert, uploadToStorage } from '../../../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
+
+function isDataUrl(value: string) {
+  return typeof value === 'string' && value.startsWith('data:')
+}
+
+function parseDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:(.+?);base64,(.+)$/)
+  if (!match) throw new Error('Invalid data URL format')
+  const mimeType = match[1]
+  const buffer = Buffer.from(match[2], 'base64')
+  return { mimeType, buffer }
+}
 
 const toClient = (doc: any) => ({
   id: doc.id,
@@ -15,6 +27,7 @@ const toClient = (doc: any) => ({
   postTypes: doc.post_types ?? {},
   date: doc.date ?? '',
   time: doc.time ?? '',
+  scheduledAt: doc.scheduled_at ?? null,
   platforms: doc.platforms ?? [],
   status: doc.status ?? 'scheduled',
   createdAt: doc.created_at,
@@ -43,18 +56,38 @@ export async function POST(req: NextRequest) {
       postTypes, date, time, platforms, status,
     } = await req.json()
 
+        const scheduledAt = date && time ? new Date(`${date}T${time}`).toISOString() : null
+    if (scheduledAt && isNaN(Date.parse(scheduledAt))) {
+      return NextResponse.json({ error: 'Tanggal dan waktu jadwal tidak valid' }, { status: 400 })
+    }
+
+    let finalMediaUrl = mediaUrl ?? null
+    let finalMediaName = mediaName ?? null
+
+    if (mediaSource === 'upload' && typeof mediaUrl === 'string' && isDataUrl(mediaUrl)) {
+      const { mimeType, buffer } = parseDataUrl(mediaUrl)
+      const ext = mimeType.split('/')[1] || 'bin'
+      const fileName = mediaName || `upload-${uuidv4()}.${ext}`
+      const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'public'
+      const path = `scheduled_posts/${user.id}/${fileName}`
+      const publicUrl = await uploadToStorage(bucket, path, buffer, { contentType: mimeType, cacheControl: '3600' })
+      finalMediaUrl = publicUrl
+      finalMediaName = fileName
+    }
+
     const doc = {
       id: uuidv4(),
       user_id: user.id,
       media_source: mediaSource === 'generated' ? 'generated' : 'upload',
       generated_content_id: typeof generatedContentId === 'string' ? generatedContentId : null,
       caption: caption ?? '',
-      media_url: mediaUrl ?? null,
-      media_name: mediaName ?? null,
+      media_url: finalMediaUrl,
+      media_name: finalMediaName,
       media_type: ['image', 'video'].includes(mediaType) ? mediaType : null,
       post_types: typeof postTypes === 'object' && postTypes ? postTypes : {},
       date: date ?? '',
       time: time ?? '',
+      scheduled_at: scheduledAt,
       platforms: Array.isArray(platforms) ? platforms : [],
       status: status ?? 'scheduled',
       created_at: new Date().toISOString(),

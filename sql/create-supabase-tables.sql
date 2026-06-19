@@ -28,7 +28,7 @@ INSERT INTO public.users (email, name, role, password) VALUES ('adminkece@carubr
 CREATE TABLE IF NOT EXISTS public.social_connects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
-  platform text,
+  platform text NOT NULL CHECK (platform IN ('instagram', 'facebook', 'tiktok', 'youtube', 'twitter', 'x', 'threads', 'whatsapp')),
   account_username text,
   account_id text,
   access_token text,

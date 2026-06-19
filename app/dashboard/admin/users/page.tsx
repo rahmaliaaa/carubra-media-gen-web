@@ -190,7 +190,7 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-4 py-4">{item.coins ?? 0}</td>
                       <td className="px-4 py-4 space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => handleRoleChange(item)}>
+                        <Button size="sm" variant="outline" onClick={() => handleRoleChange(item)} disabled>
                           Role
                         </Button>
                         <Button size="sm" variant="secondary" onClick={() => handleCoinsChange(item)}>

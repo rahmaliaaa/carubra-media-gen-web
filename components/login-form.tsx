@@ -14,20 +14,22 @@ export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuth()
+  const { login, error, clearError } = useAuth()
   const { t } = useLanguage()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    
-    const success = await login(email, password)
-    
-    if (success) {
+
+    const result = await login(email, password)
+
+    if (result.success) {
       router.push("/dashboard")
+    } else if (result.blocked) {
+      router.push("/blocked")
     }
-    
+
     setIsLoading(false)
   }
 
@@ -43,6 +45,12 @@ export function LoginForm() {
           </p>
         </div>
         
+        {error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">{t("auth.email")}</Label>
@@ -51,7 +59,10 @@ export function LoginForm() {
               type="email"
               placeholder="contoh@carubra.id"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                clearError()
+              }}
               required
               className="h-12"
             />
@@ -64,7 +75,10 @@ export function LoginForm() {
               type="password"
               placeholder="********"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                clearError()
+              }}
               required
               className="h-12"
             />

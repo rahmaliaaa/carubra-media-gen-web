@@ -230,7 +230,7 @@ CREATE TRIGGER trigger_images_updated_at
 CREATE TABLE social_connects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL CHECK (platform IN ('instagram', 'facebook', 'tiktok', 'youtube', 'x', 'threads')),
+  platform TEXT NOT NULL CHECK (platform IN ('instagram', 'facebook', 'tiktok', 'youtube', 'twitter', 'threads', 'whatsapp')),
   account_username TEXT NOT NULL,
   account_id TEXT NOT NULL,
   access_token TEXT NOT NULL,

@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken'
 import { NextRequest } from 'next/server'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'carubra-secret-key'

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -96,7 +97,7 @@ type PlatformMeta = {
   id: SocmedId
   name: string
   color: string
-  Icon: React.FC<{ className?: string }>
+  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   uiOnly?: boolean
   connectLabel: string
   connectHint: string
@@ -109,7 +110,7 @@ const PLATFORM_META: PlatformMeta[] = [
   {
     id: "instagram", name: "Instagram", color: "#E1306C", Icon: Camera,
     connectLabel: "Masuk dengan Instagram",
-    connectHint: "Hubungkan akun Instagram Business atau Creator kamu untuk menjadwalkan postingan foto & video.",
+    connectHint: "Mulai koneksi Instagram Business atau Creator melalui OAuth. Pastikan akun sudah terhubung ke Facebook Page.",
     usernameLabel: "Username Instagram",
     usernamePlaceholder: "@namakamu",
     postTypes: ["story", "feed", "reels"],
@@ -117,16 +118,15 @@ const PLATFORM_META: PlatformMeta[] = [
   {
     id: "facebook", name: "Facebook", color: "#1877F2", Icon: Users,
     connectLabel: "Masuk dengan Facebook",
-    connectHint: "Hubungkan Facebook Page kamu. Pastikan kamu adalah Admin dari halaman tersebut.",
+    connectHint: "Mulai OAuth untuk menghubungkan Facebook Page kamu. Pastikan kamu adalah Admin halaman tersebut.",
     usernameLabel: "Nama Facebook Page",
     usernamePlaceholder: "Nama Page / @username",
     postTypes: ["feed", "story", "reels"],
   },
   {
     id: "tiktok", name: "TikTok", color: "#010101", Icon: TikTokIcon,
-    uiOnly: true,
-    connectLabel: "Segera hadir",
-    connectHint: "Segera hadir.",
+    connectLabel: "Masuk dengan TikTok",
+    connectHint: "Hubungkan akun TikTok melalui OAuth untuk memeriksa apakah koneksi dapat dibuat.",
     usernameLabel: "Username TikTok",
     usernamePlaceholder: "@namakamu",
     postTypes: ["video"],
@@ -141,17 +141,16 @@ const PLATFORM_META: PlatformMeta[] = [
   },
   {
     id: "twitter", name: "X (Twitter)", color: "#14171A", Icon: X,
-    uiOnly: true,
-    connectLabel: "Segera hadir",
-    connectHint: "Segera hadir.",
+    connectLabel: "Masuk dengan X",
+    connectHint: "Gunakan OAuth untuk menghubungkan akun X/Twitter dan mengaktifkan penjadwalan tweet.",
     usernameLabel: "Username X",
     usernamePlaceholder: "@namakamu",
     postTypes: ["tweet"],
   },
   {
     id: "threads", name: "Threads", color: "#101010", Icon: ThreadsIcon,
-    connectLabel: "Masuk dengan Threads",
-    connectHint: "Segera hadir.",
+    connectLabel: "Hubungkan Threads",
+    connectHint: "Klik untuk melihat status integrasi Threads dan memeriksa apakah koneksi dapat dibuat.",
     usernameLabel: "Username Threads",
     usernamePlaceholder: "@namakamu",
     postTypes: ["post"],
@@ -159,9 +158,8 @@ const PLATFORM_META: PlatformMeta[] = [
   },
   {
     id: "whatsapp", name: "WhatsApp", color: "#25D366", Icon: WhatsAppIcon,
-    uiOnly: true,
     connectLabel: "Hubungkan WhatsApp",
-    connectHint: "Segera hadir.",
+    connectHint: "Hubungkan WhatsApp lewat GoWA. Scan QR dari halaman GoWA, lalu simpan nomor WhatsApp kamu.",
     usernameLabel: "Nomor WhatsApp",
     usernamePlaceholder: "+62 8xx xxxx xxxx",
     postTypes: ["message"],
@@ -232,6 +230,12 @@ export default function AutoUploadPage() {
   const [showIgInstructionDialog, setShowIgInstructionDialog] = useState(false)
   const [pendingOAuthId, setPendingOAuthId] = useState<SocmedId | null>(null)
 
+  // WhatsApp QR dialog
+  const [showWhatsAppQrDialog, setShowWhatsAppQrDialog] = useState(false)
+  const [whatsappPhone, setWhatsappPhone] = useState('')
+  const [whatsappError, setWhatsappError] = useState<string | null>(null)
+  const [isSavingWhatsApp, setIsSavingWhatsApp] = useState(false)
+
   // WhatsApp / Threads coming soon dialog
   const [showComingSoonDialog, setShowComingSoonDialog] = useState(false)
   const [comingSoonPlatform, setComingSoonPlatform] = useState<SocmedId | null>(null)
@@ -290,6 +294,15 @@ export default function AutoUploadPage() {
     }
   }, [])
 
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error) {
+      setFetchError(error)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     fetchConnections()
     fetchPosts()
@@ -320,21 +333,20 @@ export default function AutoUploadPage() {
       return
     }
 
-    // Instagram & Facebook: langsung OAuth via /api/social-connect/:id/start
-    if (id === 'instagram' || id === 'facebook') {
-      ;(async () => {
-        try {
-          const data = await apiFetch<{ url: string }>(`/api/social-connect/${id}/start`, { method: 'POST' })
-          window.location.href = data.url
-        } catch (e: any) {
-          alert(`Gagal memulai koneksi ${id}: ` + e.message)
-        }
-      })()
+    if (id === 'whatsapp') {
+      setShowWhatsAppQrDialog(true)
+      setWhatsappPhone('')
+      setWhatsappError(null)
       return
     }
 
-    // YouTube: direct OAuth
-    if (id === 'youtube') {
+    if (id === 'instagram') {
+      setPendingOAuthId(id)
+      setShowIgInstructionDialog(true)
+      return
+    }
+
+    if (id === 'facebook' || id === 'youtube' || id === 'tiktok' || id === 'twitter') {
       startOAuth(id)
       return
     }
@@ -343,6 +355,29 @@ export default function AutoUploadPage() {
     setConnectPlatform(id)
     setConnectUsername("")
     setConnectError(null)
+  }
+
+  const handleSaveWhatsAppPhone = async () => {
+    if (!whatsappPhone.trim()) {
+      setWhatsappError('Nomor WhatsApp tidak boleh kosong.')
+      return
+    }
+
+    setIsSavingWhatsApp(true)
+    setWhatsappError(null)
+    try {
+      await apiFetch('/api/social-connect', {
+        method: 'POST',
+        body: JSON.stringify({ platform: 'whatsapp', username: whatsappPhone.trim() }),
+      })
+      await fetchConnections()
+      setShowWhatsAppQrDialog(false)
+      setWhatsappPhone('')
+    } catch (e: any) {
+      setWhatsappError(e.message)
+    } finally {
+      setIsSavingWhatsApp(false)
+    }
   }
 
   const handleProceedOAuth = async () => {
@@ -357,15 +392,20 @@ export default function AutoUploadPage() {
       setConnectError("Username tidak boleh kosong.")
       return
     }
+    
     setIsConnecting(true)
     setConnectError(null)
     try {
       await apiFetch("/api/social-connect", {
         method: "POST",
-        body: JSON.stringify({ platform: connectPlatform, username: connectUsername.trim() }),
+        body: JSON.stringify({ 
+          platform: connectPlatform, 
+          username: connectUsername.trim(),
+        }),
       })
       await fetchConnections()
       setConnectPlatform(null)
+      setConnectUsername("")
     } catch (e: any) {
       setConnectError(e.message)
     } finally {
@@ -488,6 +528,23 @@ export default function AutoUploadPage() {
     }
   }
 
+  const [isRunning, setIsRunning] = useState(false)
+
+  const handleRunPending = async () => {
+    setIsRunning(true)
+    try {
+      const data = await apiFetch<{ published: number; failed: number; errors: string[] }>('/api/scheduled-posts/run', { method: 'POST' })
+      const message = `Diproses: ${data.published} berhasil, ${data.failed} gagal.`
+      alert(data.errors && data.errors.length ? `${message}\n
+${data.errors.join('\n')}` : message)
+      await fetchPosts()
+    } catch (e: any) {
+      alert(`Gagal menjalankan jadwal: ${e.message}`)
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
   const handleDeletePost = async (id: string) => {
     try {
       await apiFetch(`/api/scheduled-posts/${id}`, { method: "DELETE" })
@@ -549,11 +606,6 @@ export default function AutoUploadPage() {
               >
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center relative" style={{ background: `${color}20` }}>
                   <Icon className="h-5 w-5" style={{ color }} />
-                  {uiOnly && !connected && (
-                    <span className="absolute -top-1.5 -right-1.5 text-[9px] font-bold bg-amber-400 text-amber-900 rounded-full px-1 py-px leading-tight">
-                      Segera
-                    </span>
-                  )}
                 </div>
                 <span className="text-xs font-semibold leading-tight">{name}</span>
 
@@ -573,7 +625,7 @@ export default function AutoUploadPage() {
                       uiOnly ? "text-amber-600 dark:text-amber-400" : "text-primary"
                     )}
                   >
-                    <Link2 className="h-3 w-3" /> {uiOnly ? "Segera hadir" : "Hubungkan"}
+                    <Link2 className="h-3 w-3" /> Hubungkan
                   </button>
                 )}
               </div>
@@ -781,12 +833,24 @@ export default function AutoUploadPage() {
 
       {/* ── Section 3: History ── */}
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <AlarmClock className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">History Postingan Terjadwal</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <AlarmClock className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">History Postingan Terjadwal</h2>
+          </div>
           {!loadingPosts && (
             <Badge variant="secondary" className="ml-auto">{posts.length} postingan</Badge>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRunPending}
+            disabled={isRunning || posts.length === 0}
+            className="ml-auto"
+          >
+            {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Jalankan Jadwal
+          </Button>
         </div>
 
         {loadingPosts ? (
@@ -890,6 +954,11 @@ export default function AutoUploadPage() {
                 autoFocus
               />
             </div>
+            {connectPlatform === 'whatsapp' && (
+              <div className="space-y-1.5 rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground leading-relaxed">
+                GoWA sudah terpasang. Scan QR di halaman setup GoWA, lalu simpan nomor WhatsApp kamu.
+              </div>
+            )}
             {connectError && (
               <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" /> {connectError}
@@ -1003,7 +1072,64 @@ export default function AutoUploadPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ══ Dialog 4: COMING SOON (WhatsApp & Threads) ══ */}
+      {/* ══ Dialog 4: WHATSAPP QR ══ */}
+      <Dialog open={showWhatsAppQrDialog} onOpenChange={setShowWhatsAppQrDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#25D36620]">
+                <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+              </div>
+              Hubungkan WhatsApp
+            </DialogTitle>
+            <DialogDescription>Scan QR code dengan ponsel kamu</DialogDescription>
+          </DialogHeader>
+          <div className="py-3 space-y-4">
+            <div className="rounded-xl bg-muted/60 p-4 flex flex-col items-center gap-3">
+              <p className="text-xs text-muted-foreground text-center">Buka aplikasi WhatsApp di ponsel dan scan QR code berikut:</p>
+              <div className="bg-white p-3 rounded-lg border border-border">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                    process.env.NEXT_PUBLIC_GOWA_BASE_URL
+                      ? `${process.env.NEXT_PUBLIC_GOWA_BASE_URL.replace(/\/$/, '')}/setup/whatsapp`
+                      : 'https://gowa.example.com/setup/whatsapp'
+                  )}`}
+                  alt="QR code untuk WhatsApp"
+                  className="w-48 h-48"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-center">Setelah scan, nomor WhatsApp akan terkoneksi ke akun kamu.</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Nomor WhatsApp</Label>
+              <Input
+                placeholder="+62 812 xxxx xxxx"
+                value={whatsappPhone}
+                onChange={e => setWhatsappPhone(e.target.value)}
+                disabled={isSavingWhatsApp}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">Masukkan nomor yang sudah dikoneksikan di atas.</p>
+            </div>
+            {whatsappError && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
+                {whatsappError}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowWhatsAppQrDialog(false)} disabled={isSavingWhatsApp}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveWhatsAppPhone} disabled={isSavingWhatsApp} className="gap-2">
+              {isSavingWhatsApp ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Simpan Nomor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══ Dialog 5: PLATFORM STATUS ══ */}
       <Dialog open={showComingSoonDialog} onOpenChange={setShowComingSoonDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -1015,24 +1141,24 @@ export default function AutoUploadPage() {
               )}
               {csMeta?.name}
             </DialogTitle>
-            <DialogDescription>Integrasi {csMeta?.name}</DialogDescription>
+            <DialogDescription>Status Integrasi {csMeta?.name}</DialogDescription>
           </DialogHeader>
           <div className="py-3 space-y-3">
             <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Segera Hadir</p>
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Status Koneksi</p>
                 <p className="text-xs text-amber-600 dark:text-amber-500 leading-relaxed">
-                  Integrasi {csMeta?.name} sedang dalam pengembangan dan akan segera tersedia.
+                  Integrasi {csMeta?.name} belum tersedia dalam versi ini.
                 </p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              Pantau terus pembaruan aplikasi untuk notifikasi saat fitur ini aktif.
+              Platform ini ditampilkan untuk keperluan roadmap. Silakan gunakan Instagram, Facebook, atau WhatsApp untuk uji otomatisasi sekarang.
             </p>
           </div>
           <DialogFooter>
-            <Button className="w-full" onClick={() => setShowComingSoonDialog(false)}>Mengerti</Button>
+            <Button className="w-full" onClick={() => setShowComingSoonDialog(false)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

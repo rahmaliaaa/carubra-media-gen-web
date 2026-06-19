@@ -16,13 +16,21 @@ type User = {
   connectedSocialAccounts?: number
 }
 
+type LoginResult = {
+  success: boolean
+  error?: string
+  blocked?: boolean
+}
+
 type AuthContextType = {
   user: User | null
   isLoading: boolean
-  login: (email: string, password: string) => Promise<boolean>
+  error: string | null
+  login: (email: string, password: string) => Promise<LoginResult>
   register: (email: string, password: string) => Promise<boolean>
   logout: () => void
   updateUser: (data: Partial<User>) => void
+  clearError: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -32,6 +40,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api"
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -42,9 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
-      // Call backend API for authentication
+      setError(null)
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,12 +65,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user)
         localStorage.setItem("carubra-user", JSON.stringify(data.user))
         localStorage.setItem("carubra-token", data.token)
-        return true
+        return { success: true }
       }
 
-      return false
-    } catch {
-      return false
+      const data = await response.json().catch(() => ({}))
+      const errorMessage = (data as any).error || "Email atau password salah"
+      setError(errorMessage)
+      return {
+        success: false,
+        error: errorMessage,
+        blocked: response.status === 403 && String(errorMessage).toLowerCase().includes("blokir"),
+      }
+    } catch (err: any) {
+      const message = err?.message ?? "Terjadi kesalahan saat login"
+      setError(message)
+      return { success: false, error: message }
     }
   }
 
@@ -89,9 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null)
+    setError(null)
     localStorage.removeItem("carubra-user")
     localStorage.removeItem("carubra-token")
     router.push("/")
+  }
+
+  const clearError = () => {
+    setError(null)
   }
 
   const updateUser = (data: Partial<User>) => {
@@ -103,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, error, login, register, logout, updateUser, clearError }}>
       {children}
     </AuthContext.Provider>
   )

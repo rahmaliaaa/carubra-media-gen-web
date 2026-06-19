@@ -10,45 +10,36 @@ export async function POST(req: NextRequest) {
     const { email, password } = await req.json()
 
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+      return NextResponse.json({ error: 'Email dan password wajib diisi' }, { status: 400 })
     }
 
-    let user = await findOne('users', { email })
-    let isNewUser = false
+    // Cek apakah user ada di database
+    const user = await findOne('users', { email })
 
+    // User tidak ditemukan
     if (!user) {
-      const hashedPassword = await bcrypt.hash(password, 10)
-      const newUser = {
-        id: uuidv4(),
-        email,
-        password: hashedPassword,
-        name: email.split('@')[0],
-        role: email.includes('admin') ? 'Admin' : 'User',
-        password_changes_used: 0,
-        membership_order: 'A7B9C2D',
-        total_created_videos: 0,
-        connected_social_accounts: 0,
-        coins: 0,
-        is_banned: false,
-      }
-      const inserted = await insert('users', newUser)
-      user = inserted ?? newUser
-      isNewUser = true
+      return NextResponse.json(
+        { error: 'Akun tidak ditemukan, silahkan melakukan register' },
+        { status: 404 }
+      )
     }
 
+    // User diblokir
     if (user.is_banned) {
       await logApiError('/api/auth/login', 'Blocked account login attempt', 403, user.id, user.email).catch(() => null)
       return NextResponse.json({ error: 'Akun ini diblokir' }, { status: 403 })
     }
 
+    // Cek password
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
-      await logApiError('/api/auth/login', 'Invalid credentials', 401, user.id, user.email).catch(() => null)
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+      await logApiError('/api/auth/login', 'Login gagal (Password salah)', 401, user.id, user.email).catch(() => null)
+      return NextResponse.json({ error: 'Login gagal (username/password salah)' }, { status: 401 })
     }
 
+    // Login berhasil
     const token = generateToken({ id: user.id, email: user.email, name: user.name, role: user.role })
-    await logUserActivity(user.id, user.email, isNewUser ? 'user.signup' : 'user.login', isNewUser ? 'New user registered and logged in' : 'User logged in').catch(() => null)
+    await logUserActivity(user.id, user.email, 'user.login', 'User logged in').catch(() => null)
 
     return NextResponse.json({
       user: {
@@ -68,6 +59,6 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Login error:', error)
     await logApiError('/api/auth/login', error.message ?? 'Login failed', 500, null, null).catch(() => null)
-    return NextResponse.json({ error: 'Login failed: ' + error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Login gagal: ' + error.message }, { status: 500 })
   }
 }
