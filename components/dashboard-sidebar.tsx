@@ -21,6 +21,7 @@ import {
   Languages,
   Menu,
   X,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -54,6 +55,7 @@ const adminNavItems: NavItem[] = [
   { href: "/dashboard/admin/content", icon: FileText, label: "Manajemen Konten" },
   { href: "/dashboard/admin/pricing", icon: DollarSign, label: "Manajemen Koin & Pricing" },
   { href: "/dashboard/admin/system", icon: Settings, label: "Pengaturan Sistem & Log" },
+  { href: "/dashboard/admin/docs", icon: BookOpen, label: "Docs Dev" },
 ]
 
 

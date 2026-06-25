@@ -36,7 +36,7 @@ type PostType = {
   youtube: "video" | "shorts"
   twitter: "tweet"
   threads: "post"
-  whatsapp: "message"
+  whatsapp: "message" | "story wa"
 }
 
 type MediaSource = "upload" | "generated"
@@ -162,7 +162,7 @@ const PLATFORM_META: PlatformMeta[] = [
     connectHint: "Hubungkan WhatsApp lewat GoWA. Scan QR dari halaman GoWA, lalu simpan nomor WhatsApp kamu.",
     usernameLabel: "Nomor WhatsApp",
     usernamePlaceholder: "+62 8xx xxxx xxxx",
-    postTypes: ["message"],
+    postTypes: ["message", "story wa"],
   },
 ]
 

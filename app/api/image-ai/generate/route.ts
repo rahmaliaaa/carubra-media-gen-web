@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const IMAGE_API_KEY = process.env.IMAGE_API_KEY
-    const IMAGE_API_URL = process.env.IMAGE_API_URL
+    const IMAGE_API_URL = (process.env.IMAGE_API_URL || '').replace(/\/+$/, '')
     const IMAGE_MODEL = process.env.IMAGE_MODEL || 'carubra/image'
 
     if (!IMAGE_API_KEY || !IMAGE_API_URL) {
@@ -65,14 +65,23 @@ export async function POST(req: NextRequest) {
       console.log(`[image-ai] Model: ${IMAGE_MODEL}, Prompt: ${prompt}`)
       console.log('[image-ai] Payload:', payload)
 
-      const response = await fetch(`${IMAGE_API_URL}/v1/images/generations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${IMAGE_API_KEY}`,
-        },
-        body: JSON.stringify(payload),
-      })
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60000) // 60s: image gen can be slow
+
+      let response: Response
+      try {
+        response = await fetch(`${IMAGE_API_URL}/v1/images/generations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${IMAGE_API_KEY}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timeout)
+      }
 
       const rawText = await response.text()
       console.log(`[image-ai] Response status: ${response.status}`)
@@ -114,13 +123,32 @@ export async function POST(req: NextRequest) {
 
       await insert('images', completedImage)
 
-      return NextResponse.json({ image: completedImage }, { status: 201 })
+      return NextResponse.json({ image: { ...completedImage, imageUrl } }, { status: 201 })
     } catch (error: any) {
       newImage.status = 'failed'
       console.error('[image-ai] Error:', error)
       try {
         await insert('images', newImage)
       } catch {}
+
+      // Detect network / timeout errors and return a clearer message
+      const isConnectError =
+        error?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+        error?.cause?.code === 'ECONNREFUSED' ||
+        error?.name === 'AbortError' ||
+        String(error).includes('fetch failed') ||
+        String(error).includes('ConnectTimeout')
+
+      if (isConnectError) {
+        return NextResponse.json(
+          {
+            error: 'Image generation server is unreachable',
+            detail: `Could not connect to ${IMAGE_API_URL}. Please make sure the image server is running and accessible from this machine.`,
+          },
+          { status: 503 },
+        )
+      }
+
       return NextResponse.json({ error: 'Failed to call image API', detail: String(error) }, { status: 502 })
     }
   } catch (err: any) {

@@ -217,13 +217,22 @@ async function publishPlatform(post: any, connection: any) {
 
 export async function publishDueScheduledPosts(userId?: string, limit = 20) {
   const supabase = await getSupabaseAdmin()
-  const now = new Date().toISOString()
-  let query = supabase.from('scheduled_posts').select('*').eq('status', 'scheduled').lte('scheduled_at', now).limit(limit)
+  const now = new Date()
+  
+  // Ambil data yang berstatus scheduled. Batas dibesarkan untuk filter di memori.
+  let query = supabase.from('scheduled_posts').select('*').eq('status', 'scheduled').limit(limit * 5)
   if (userId) query = query.eq('user_id', userId)
 
-  const { data: duePosts, error: dueError } = await query
+  const { data: allScheduled, error: dueError } = await query
   if (dueError) throw dueError
-  if (!duePosts || duePosts.length === 0) {
+  
+  const duePosts = (allScheduled || []).filter((post: any) => {
+    if (!post.scheduled_date || !post.scheduled_time) return false
+    const postTime = new Date(`${post.scheduled_date}T${post.scheduled_time}`)
+    return isNaN(postTime.getTime()) ? false : postTime <= now
+  }).slice(0, limit)
+
+  if (duePosts.length === 0) {
     return { published: 0, failed: 0, errors: [] }
   }
 

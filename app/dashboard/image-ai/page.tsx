@@ -236,7 +236,7 @@ function DetailModal({
                           <Button size="sm" className={cn("gap-1.5 text-white border-0 text-xs h-8",
                             shareSuccess === "twitter" ? "bg-green-500" : "bg-sky-500 hover:bg-sky-600")}
                             onClick={() => handleShare("twitter")}>
-                            {shareSuccess === "twitter" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Twitter className="h-3.5 w-3.5" />}
+                            {shareSuccess === "twitter" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <TwitterIcon className="h-3.5 w-3.5" />}
                             {shareSuccess === "twitter" ? "Dibagikan!" : "Twitter / X"}
                           </Button>
                         )}
@@ -244,7 +244,7 @@ function DetailModal({
                           <Button size="sm" className={cn("gap-1.5 text-white border-0 text-xs h-8",
                             shareSuccess === "instagram" ? "bg-green-500" : "bg-gradient-to-r from-pink-500 to-purple-600")}
                             onClick={() => handleShare("instagram")}>
-                            {shareSuccess === "instagram" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Instagram className="h-3.5 w-3.5" />}
+                            {shareSuccess === "instagram" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <InstagramIcon className="h-3.5 w-3.5" />}
                             {shareSuccess === "instagram" ? "Dibagikan!" : "Instagram"}
                           </Button>
                         )}
@@ -252,7 +252,7 @@ function DetailModal({
                           <Button size="sm" className={cn("gap-1.5 text-white border-0 text-xs h-8",
                             shareSuccess === "facebook" ? "bg-green-500" : "bg-blue-600 hover:bg-blue-700")}
                             onClick={() => handleShare("facebook")}>
-                            {shareSuccess === "facebook" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Facebook className="h-3.5 w-3.5" />}
+                            {shareSuccess === "facebook" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <FacebookIcon className="h-3.5 w-3.5" />}
                             {shareSuccess === "facebook" ? "Dibagikan!" : "Facebook"}
                           </Button>
                         )}
@@ -791,12 +791,12 @@ export default function ImageAIPage() {
                   <div className="flex flex-wrap gap-2">
                     {connectedSocmed.includes("twitter") && (
                       <Button size="sm" className="gap-2 bg-sky-500 hover:bg-sky-600 text-white border-0">
-                        <Twitter className="h-4 w-4" /> Twitter / X
+                        <TwitterIcon className="h-4 w-4" /> Twitter / X
                       </Button>
                     )}
                     {connectedSocmed.includes("instagram") && (
                       <Button size="sm" className="gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white border-0">
-                        <Instagram className="h-4 w-4" /> Instagram
+                        <InstagramIcon className="h-4 w-4" /> Instagram
                       </Button>
                     )}
                     {connectedSocmed.length === 0 && (

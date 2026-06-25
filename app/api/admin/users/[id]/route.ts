@@ -4,7 +4,7 @@ import { getAdminUser, isAdminUser } from '@/lib/admin'
 import { updateOne } from '@/lib/supabase'
 
 export async function PATCH(req: NextRequest, context: any) {
-  const { params } = context
+  const params = await context.params
   const admin = await getAdminUser(req)
   if (!isAdminUser(admin)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

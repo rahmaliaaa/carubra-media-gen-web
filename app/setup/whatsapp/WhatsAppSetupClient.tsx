@@ -113,15 +113,7 @@ export default function WhatsAppSetupClient({ gowaBaseUrl }: Props) {
                   <p className="text-xs uppercase tracking-[0.24em] text-slate-400">URL</p>
                   <p className="mt-2 break-words text-sm font-medium">{qrUrl}</p>
                 </div>
-                {qrUrl && (
-                  <div className="mb-4 rounded-2xl border border-slate-200 overflow-hidden bg-white">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(qrUrl)}`}
-                      alt="QR code GoWA"
-                      className="w-full block"
-                    />
-                  </div>
-                )}
+                
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button onClick={handleCopy} className="gap-2" disabled={!qrUrl}>
                     <Copy className="h-4 w-4" /> Salin URL
@@ -132,7 +124,9 @@ export default function WhatsAppSetupClient({ gowaBaseUrl }: Props) {
                     </a>
                   </Button>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">Jika GoWA menampilkan QR code, scan dengan aplikasi WhatsApp di ponsel kamu dan tunggu konfirmasi.</p>
+                <p className="mt-3 text-xs text-slate-500">
+                  Klik tombol <strong>Buka GoWA</strong> di atas. Setelah halaman GoWA terbuka dan menampilkan QR Code aslinya, scan QR tersebut menggunakan aplikasi WhatsApp di HP kamu.
+                </p>
               </div>
             </div>
 

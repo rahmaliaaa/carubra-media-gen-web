@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -139,6 +140,9 @@ export default function ContentStrategyPage() {
   const [copiedCaption, setCopiedCaption] = useState(false)
   const [activeJobId, setActiveJobId]     = useState<string | null>(null)
 
+  const [selectedHistoryJob, setSelectedHistoryJob] = useState<HistoryJob | null>(null)
+  const [modalCopiedCaption, setModalCopiedCaption] = useState(false)
+
   // History state
   const [history, setHistory]             = useState<HistoryJob[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
@@ -151,12 +155,22 @@ export default function ContentStrategyPage() {
   })
 
   // ─── Fetch history ────────────────────────────────────────────────────────
-  const fetchHistory = async () => {
+  const fetchHistory = async (autoLoadFirst = false) => {
     try {
       const res = await apiFetch("/api/content-analysis")
       if (res.ok) {
         const json = await res.json()
-        setHistory(json.jobs ?? [])
+        const fetchedJobs: HistoryJob[] = json.jobs ?? []
+        setHistory(fetchedJobs)
+
+        // Auto-load hasil terbaru hanya saat pertama buka halaman (tidak ada result aktif)
+        if (autoLoadFirst && fetchedJobs.length > 0) {
+          const firstCompleted = fetchedJobs.find(j => j.status === "completed" && j.result)
+          if (firstCompleted) {
+            setResult(firstCompleted.result)
+            setActiveJobId(firstCompleted.id)
+          }
+        }
       }
     } catch {
       // ignore
@@ -165,7 +179,7 @@ export default function ContentStrategyPage() {
     }
   }
 
-  useEffect(() => { fetchHistory() }, [])
+  useEffect(() => { fetchHistory(true) }, [])
 
   // ─── Submit ───────────────────────────────────────────────────────────────
   const handleGenerate = async () => {
@@ -206,6 +220,13 @@ export default function ContentStrategyPage() {
     await navigator.clipboard.writeText(result.caption)
     setCopiedCaption(true)
     setTimeout(() => setCopiedCaption(false), 2000)
+  }
+
+  const copyModalCaption = async () => {
+    if (!selectedHistoryJob?.result?.caption) return
+    await navigator.clipboard.writeText(selectedHistoryJob.result.caption)
+    setModalCopiedCaption(true)
+    setTimeout(() => setModalCopiedCaption(false), 2000)
   }
 
   // ─── Chart configs ────────────────────────────────────────────────────────
@@ -262,33 +283,43 @@ export default function ContentStrategyPage() {
 
   // Mermaid container ref and render logic (client-side only)
   const mermaidRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    if (!result) return
-    // dynamic import mermaid for client-side rendering
-    // @ts-ignore - dynamic import of mermaid (no types bundled)
+  const modalMermaidRef = useRef<HTMLDivElement | null>(null)
+
+  const renderMermaid = (res: StrategyResult | null, targetRef: any, jobId: string | null) => {
+    if (!res) return
+    // @ts-ignore
     import("mermaid").then((m: any) => {
       try {
         const mermaid = m.default ?? m
         mermaid.initialize({ startOnLoad: false, theme: "default" })
-        const nodes = result.content_flow
+        const nodes = res.content_flow
           .map((s, i) => `A${i}["${s.replace(/\"/g, '\\"')}"]`)
           .join("\n")
-        const links = result.content_flow
-          .map((_, i) => (i < result.content_flow.length - 1 ? `A${i} --> A${i + 1}` : ""))
+        const links = res.content_flow
+          .map((_, i) => (i < res.content_flow.length - 1 ? `A${i} --> A${i + 1}` : ""))
           .filter(Boolean)
           .join("\n")
         const graph = `flowchart LR\n${nodes}\n${links}`
-        // use activeJobId to make element id unique per job
-        const renderId = `mermaidDiagram-${activeJobId ?? Math.random().toString(36).slice(2)}`
-        mermaid.render(renderId, graph).then((res: any) => {
-          const svg = res?.svg ?? ""
-          if (mermaidRef.current) mermaidRef.current.innerHTML = svg
+        const renderId = `mermaidDiagram-${jobId ?? Math.random().toString(36).slice(2)}`
+        mermaid.render(renderId, graph).then((r: any) => {
+          const svg = r?.svg ?? ""
+          if (targetRef.current) targetRef.current.innerHTML = svg
         })
-      } catch (e) {
-        // ignore render errors
-      }
+      } catch (e) {}
     }).catch(() => {})
+  }
+
+  useEffect(() => {
+    renderMermaid(result, mermaidRef, activeJobId)
   }, [result, activeJobId])
+
+  useEffect(() => {
+    if (selectedHistoryJob?.result) {
+      setTimeout(() => {
+        renderMermaid(selectedHistoryJob.result, modalMermaidRef, selectedHistoryJob.id)
+      }, 100) // allow dialog content to mount
+    }
+  }, [selectedHistoryJob])
 
   // Sentiment pie data
   const sentimentData = {
@@ -720,13 +751,10 @@ export default function ContentStrategyPage() {
                 <button
                   key={job.id}
                   onClick={() => {
-                    setActiveJobId(job.id)
-                    if (job.result) setResult(job.result)
+                    setSelectedHistoryJob(job)
                   }}
                   disabled={job.status !== "completed"}
-                  className={`w-full flex items-center gap-3 py-3 text-left transition-colors rounded px-1 ${
-                    activeJobId === job.id ? "bg-muted/50" : "hover:bg-muted/30"
-                  } disabled:opacity-60 disabled:cursor-default`}
+                  className={`w-full flex items-center gap-3 py-3 text-left transition-colors rounded px-1 hover:bg-muted/30 disabled:opacity-60 disabled:cursor-default`}
                 >
                   <span className="text-lg">{platformIcon(job.platform)}</span>
                   <div className="flex-1 min-w-0">
@@ -753,6 +781,362 @@ export default function ContentStrategyPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Detail Modal ── */}
+      <Dialog open={!!selectedHistoryJob} onOpenChange={(open) => !open && setSelectedHistoryJob(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full mx-auto bg-background p-0">
+          <DialogHeader className="px-6 py-4 border-b border-border sticky top-0 bg-background z-10">
+            <DialogTitle>Detail Strategi Konten</DialogTitle>
+            <DialogDescription>Hasil generasi AI untuk prompt: {selectedHistoryJob?.prompt}</DialogDescription>
+          </DialogHeader>
+          <div className="p-6 space-y-5">
+            {selectedHistoryJob?.result && (
+              <>
+                {/* Konsep + Metric utama */}
+                <Card>
+                  <CardContent className="pt-5">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div>
+                        <h2 className="text-base font-medium mb-1">{selectedHistoryJob.result.concept_title}</h2>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{selectedHistoryJob.result.concept_description}</p>
+                      </div>
+                      <div className="flex-shrink-0 text-center">
+                        <div
+                          className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-medium"
+                          style={{
+                            background: selectedHistoryJob.result.viral_score >= 80 ? "#EAF3DE" : selectedHistoryJob.result.viral_score >= 60 ? "#FAEEDA" : "#FCEBEB",
+                            color: selectedHistoryJob.result.viral_score >= 80 ? "#3B6D11" : selectedHistoryJob.result.viral_score >= 60 ? "#854F0B" : "#A32D2D",
+                          }}
+                        >
+                          {selectedHistoryJob.result.viral_score}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Viral score</p>
+                      </div>
+                    </div>
+
+                    {/* Hook */}
+                    <div className="rounded-lg p-3 mb-3" style={{ background: "#E6F1FB" }}>
+                      <p className="text-xs font-medium mb-1" style={{ color: "#185FA5" }}>Hook 3 detik pertama</p>
+                      <p className="text-sm" style={{ color: "#0C447C" }}>"{selectedHistoryJob.result.hook}"</p>
+                    </div>
+
+                    {/* Content flow */}
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Alur konten</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedHistoryJob.result.content_flow.map((step, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <span
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0"
+                            style={{ background: "#E6F1FB", color: "#185FA5" }}
+                          >
+                            {i + 1}
+                          </span>
+                          <span className="text-sm">{step}</span>
+                          {i < selectedHistoryJob.result.content_flow.length - 1 && (
+                            <span className="text-muted-foreground text-xs ml-1">→</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Metric cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "Est. views",
+                      value: `${selectedHistoryJob.result.estimated_views.min}–${selectedHistoryJob.result.estimated_views.max}`,
+                      sub: "estimasi jangkauan",
+                      subColor: "text-muted-foreground",
+                    },
+                    {
+                      label: "Engagement rate",
+                      value: `${selectedHistoryJob.result.engagement_rate}%`,
+                      sub: selectedHistoryJob.result.engagement_rate >= 6 ? "Di atas rata-rata" : "Rata-rata industri",
+                      subColor: selectedHistoryJob.result.engagement_rate >= 6 ? "text-green-600" : "text-amber-600",
+                    },
+                    {
+                      label: "Best post time",
+                      value: selectedHistoryJob.result.best_post_time,
+                      sub: selectedHistoryJob.result.best_post_days,
+                      subColor: "text-muted-foreground",
+                    },
+                    {
+                      label: "Caption score",
+                      value: `${selectedHistoryJob.result.caption_score}/100`,
+                      sub: selectedHistoryJob.result.caption_score >= 80 ? "Sangat baik" : selectedHistoryJob.result.caption_score >= 60 ? "Cukup baik" : "Perlu perbaikan",
+                      subColor: selectedHistoryJob.result.caption_score >= 80 ? "text-green-600" : selectedHistoryJob.result.caption_score >= 60 ? "text-amber-600" : "text-red-600",
+                    },
+                  ].map(m => (
+                    <div key={m.label} className="bg-muted rounded-lg p-3">
+                      <div className="text-xs text-muted-foreground mb-1">{m.label}</div>
+                      <div className="text-xl font-medium">{m.value}</div>
+                      <div className={`text-xs mt-0.5 ${m.subColor}`}>{m.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Caption + Hashtag */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Card>
+                    <CardContent className="pt-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Caption</p>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-medium"
+                            style={{ background: "#E6F1FB", color: "#185FA5" }}
+                          >
+                            {selectedHistoryJob.result.caption_tone}
+                          </span>
+                          <button
+                            onClick={copyModalCaption}
+                            className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted transition-colors"
+                          >
+                            {modalCopiedCaption ? "✓ Copied" : "Copy"}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryJob.result.caption}</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Hashtag</p>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {selectedHistoryJob.result.hashtags.map(h => (
+                          <span
+                            key={h}
+                            className="text-xs px-2.5 py-1 rounded-full border border-border"
+                            style={{ background: "var(--background)" }}
+                          >
+                            {h}
+                          </span>
+                        ))}
+                      </div>
+                      {selectedHistoryJob.result.hashtag_warning && (
+                        <div className="text-xs rounded-lg px-3 py-2" style={{ background: "#FAEEDA", color: "#854F0B" }}>
+                          ⚠️ {selectedHistoryJob.result.hashtag_warning}
+                        </div>
+                      )}
+
+                      <div className="mt-4">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Format konten</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedHistoryJob.result.content_formats.map(f => (
+                            <span
+                              key={f}
+                              className="text-xs px-2.5 py-1 rounded-full"
+                              style={{ background: "#EAF3DE", color: "#3B6D11" }}
+                            >
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Trend chart */}
+                <Card>
+                  <CardContent className="pt-5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                      Proyeksi engagement trend — 30 hari
+                    </p>
+                    <div style={{ height: 180 }}>
+                      <Line data={{
+                        labels: trendLabels,
+                        datasets: [{
+                          label: "Engagement Rate",
+                          data: selectedHistoryJob.result.trend_30d ?? [],
+                          borderColor: "#378ADD",
+                          backgroundColor: "rgba(55,138,221,0.07)",
+                          borderWidth: 2,
+                          fill: true,
+                          tension: 0.4,
+                          pointRadius: 0,
+                          pointHoverRadius: 4,
+                        }],
+                      }} options={trendChartOptions} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Diagram (Mermaid) + Sentiment Pie */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Card className="sm:col-span-2">
+                    <CardContent className="pt-5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">Diagram alur konten</p>
+                      <div className="rounded border border-border p-3 min-h-[140px] overflow-auto" ref={modalMermaidRef} />
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Analisis sentimen</p>
+                      <div style={{ height: 150 }}>
+                        <Pie data={{
+                          labels: ["Positive", "Neutral", "Negative"],
+                          datasets: [
+                            {
+                              data: [selectedHistoryJob.result.sentiment.positive ?? 0, selectedHistoryJob.result.sentiment.neutral ?? 0, selectedHistoryJob.result.sentiment.negative ?? 0],
+                              backgroundColor: ["#34D399", "#FBBF24", "#F87171"],
+                              hoverOffset: 6,
+                            },
+                          ],
+                        }} options={{ plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }} />
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-3">{selectedHistoryJob.result.sentiment_summary}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Audience match + Platform reach */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Card>
+                    <CardContent className="pt-5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                        Audience match
+                      </p>
+                      <div className="space-y-3">
+                        {selectedHistoryJob.result.audience_match.map(a => (
+                          <div key={a.segment}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span>{a.segment}</span>
+                              <span className="font-medium">{a.pct}%</span>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{ width: `${a.pct}%`, background: "#378ADD" }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                        Est. reach per platform
+                      </p>
+                      <div style={{ height: 130 }}>
+                        <Bar data={{
+                          labels: selectedHistoryJob.result.platform_reach.map(p => p.platform) ?? [],
+                          datasets: [{
+                            label: "Est. Reach",
+                            data: selectedHistoryJob.result.platform_reach.map(p => parseInt(p.reach.replace(/[^0-9]/g, ""))) ?? [],
+                            backgroundColor: selectedHistoryJob.result.platform_reach.map(p => p.color) ?? [],
+                            borderRadius: 4,
+                          }],
+                        }} options={reachChartOptions} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Sentiment */}
+                <Card>
+                  <CardContent className="pt-5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Analisis sentimen konten
+                    </p>
+                    <div className="flex rounded-lg overflow-hidden h-2.5 mb-3">
+                      <div style={{ width: `${selectedHistoryJob.result.sentiment.positive}%`, background: "#639922" }} />
+                      <div style={{ width: `${selectedHistoryJob.result.sentiment.neutral}%`, background: "#EF9F27" }} />
+                      <div style={{ width: `${selectedHistoryJob.result.sentiment.negative}%`, background: "#E24B4A" }} />
+                    </div>
+                    <div className="flex gap-4 text-xs text-muted-foreground mb-3">
+                      {[
+                        { label: `Positif ${selectedHistoryJob.result.sentiment.positive}%`, color: "#639922" },
+                        { label: `Netral ${selectedHistoryJob.result.sentiment.neutral}%`, color: "#EF9F27" },
+                        { label: `Negatif ${selectedHistoryJob.result.sentiment.negative}%`, color: "#E24B4A" },
+                      ].map(s => (
+                        <span key={s.label} className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm inline-block" style={{ background: s.color }} />
+                          {s.label}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{selectedHistoryJob.result.sentiment_summary}</p>
+                  </CardContent>
+                </Card>
+
+                {/* Recommendations */}
+                <Card>
+                  <CardContent className="pt-5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                      Rekomendasi strategi AI
+                    </p>
+                    <div className="divide-y divide-border">
+                      {selectedHistoryJob.result.recommendations.map((r, i) => {
+                        const pColor = priorityColor(r.priority)
+                        return (
+                          <div key={i} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                            <div
+                              className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
+                              style={{ background: pColor.bg, color: pColor.color }}
+                            >
+                              {r.icon}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <p className="text-sm font-medium">{r.title}</p>
+                                <span
+                                  className="text-xs px-1.5 py-0.5 rounded font-medium"
+                                  style={{ background: pColor.bg, color: pColor.color }}
+                                >
+                                  {pColor.label}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{r.description}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* CTA Suggestions + Competitor Insight */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Card>
+                    <CardContent className="pt-5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                        Variasi Call to Action
+                      </p>
+                      <div className="space-y-2">
+                        {selectedHistoryJob.result.cta_suggestions.map((cta, i) => (
+                          <div
+                            key={i}
+                            className="text-sm px-3 py-2 rounded-lg border border-border"
+                          >
+                            "{cta}"
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                        Insight kompetitor
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{selectedHistoryJob.result.competitor_insight}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

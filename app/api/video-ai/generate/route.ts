@@ -44,41 +44,34 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${VIDEO_API_KEY}`,
       }
 
-      if (baseUrl.includes('openrouter.ai')) {
-        headers['Content-Type'] = 'application/json'
+      headers['Content-Type'] = 'application/json'
 
-        let aspect_ratio: string | undefined = undefined
-        if (style) {
-          aspect_ratio = style.replace('-', ':') // E.g. '16-9' -> '16:9'
-        }
+      let aspect_ratio: string | undefined = undefined
+      if (style) {
+        aspect_ratio = style.replace('-', ':') // E.g. '16-9' -> '16:9'
+      }
 
-        const body = {
-          model: VIDEO_MODEL,
-          prompt: prompt,
-          ...(aspect_ratio ? { aspect_ratio } : {}),
-        }
+      const body = {
+        model: VIDEO_MODEL,
+        prompt: prompt,
+        ...(aspect_ratio ? { aspect_ratio } : {}),
+      }
 
-        console.log(`[video-ai] Calling OpenRouter: ${fetchUrl}`)
-        console.log(`[video-ai] Model: ${VIDEO_MODEL}, Prompt: ${prompt}, Aspect Ratio: ${aspect_ratio}`)
+      console.log(`[video-ai] Calling: ${fetchUrl}`)
+      console.log(`[video-ai] Model: ${VIDEO_MODEL}, Prompt: ${prompt}, Aspect Ratio: ${aspect_ratio}`)
 
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60000)
+
+      try {
         response = await fetch(fetchUrl, {
           method: 'POST',
           headers,
           body: JSON.stringify(body),
+          signal: controller.signal,
         })
-      } else {
-        const formData = new FormData()
-        formData.append('model', VIDEO_MODEL)
-        formData.append('prompt', prompt)
-
-        console.log(`[video-ai] Calling Custom API: ${fetchUrl}`)
-        console.log(`[video-ai] Model: ${VIDEO_MODEL}, Prompt: ${prompt}`)
-
-        response = await fetch(fetchUrl, {
-          method: 'POST',
-          headers,
-          body: formData,
-        })
+      } finally {
+        clearTimeout(timeout)
       }
 
       const rawText = await response.text()
@@ -124,6 +117,25 @@ export async function POST(req: NextRequest) {
       try {
         await insert('videos', newVideo)
       } catch {}
+
+      // Detect network / timeout errors and return a clearer message
+      const isConnectError =
+        error?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+        error?.cause?.code === 'ECONNREFUSED' ||
+        error?.name === 'AbortError' ||
+        String(error).includes('fetch failed') ||
+        String(error).includes('ConnectTimeout')
+
+      if (isConnectError) {
+        return NextResponse.json(
+          {
+            error: 'Video generation server is unreachable',
+            detail: `Could not connect to ${fetchUrl}. Please make sure the video server is running and accessible.`,
+          },
+          { status: 503 },
+        )
+      }
+
       return NextResponse.json({ error: 'Failed to call video API', detail: String(error) }, { status: 502 })
     }
   } catch (err: any) {

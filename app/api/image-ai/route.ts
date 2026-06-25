@@ -12,7 +12,12 @@ export async function GET(req: NextRequest) {
       { user_id: user.id },
       { orderBy: 'created_at', ascending: false }
     )
-    return NextResponse.json({ images: userImages })
+    // Supabase stores snake_case (image_url), map to camelCase for the client
+    const images = (userImages || []).map((img: any) => ({
+      ...img,
+      imageUrl: img.image_url || img.imageUrl || null,
+    }))
+    return NextResponse.json({ images })
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to fetch images', detail: String(error) }, { status: 500 })
   }

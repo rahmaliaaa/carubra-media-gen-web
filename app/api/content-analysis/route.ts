@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { CONTENT_STRATEGY_SYSTEM_PROMPT, buildUserPrompt } from "./prompts"
+import { getUserFromRequest } from "@/middleware/auth"
+import { insert, find } from "@/lib/supabase"
 
 
 export type StrategyResult = {
@@ -44,7 +46,62 @@ export type StrategyJob = {
 	error?: string
 }
 
-const jobStore: Map<string, StrategyJob> = new Map()
+// ── Per-user in-memory fallback (used when Supabase table doesn't exist) ────
+const fallbackStore: Map<string, Map<string, StrategyJob>> = new Map()
+function getFallbackJobs(userId: string): Map<string, StrategyJob> {
+	if (!fallbackStore.has(userId)) fallbackStore.set(userId, new Map())
+	return fallbackStore.get(userId)!
+}
+
+async function persistJob(job: StrategyJob, userId: string) {
+	try {
+		await insert('content_analysis_jobs', {
+			id: job.id,
+			user_id: userId,
+			prompt: job.prompt,
+			platform: job.platform,
+			target_audience: job.target_audience,
+			status: job.status,
+			result: job.result,
+			created_at: job.created_at,
+		})
+	} catch {
+		// Table may not exist yet — use in-memory fallback
+		getFallbackJobs(userId).set(job.id, job)
+	}
+}
+
+async function updatePersistedJob(jobId: string, userId: string, updates: Partial<StrategyJob>) {
+	try {
+		const { updateOne } = await import('@/lib/supabase')
+		await updateOne('content_analysis_jobs', { id: jobId, user_id: userId }, updates)
+	} catch {
+		const existing = getFallbackJobs(userId).get(jobId)
+		if (existing) getFallbackJobs(userId).set(jobId, { ...existing, ...updates })
+	}
+}
+
+async function loadJobs(userId: string): Promise<StrategyJob[]> {
+	try {
+		const rows = await find('content_analysis_jobs', { user_id: userId }, { orderBy: 'created_at', ascending: false })
+		return (rows || []).map((r: any) => ({
+			id: r.id,
+			prompt: r.prompt,
+			platform: r.platform,
+			target_audience: r.target_audience,
+			status: r.status,
+			created_at: r.created_at,
+			result: r.result ?? null,
+		}))
+	} catch {
+		// Fallback to in-memory
+		return Array.from(getFallbackJobs(userId).values()).sort(
+			(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+		)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function extractJsonBlock(text: string) {
 	const matches = text.match(/\{[\s\S]*\}/g)
@@ -299,6 +356,9 @@ function mapKeysToStrategy(obj: any, platform: string, targetAudience: string | 
 }
 
 export async function POST(req: NextRequest) {
+	const user = getUserFromRequest(req)
+	if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
 	try {
 		const body = await req.json()
 		const { prompt, platform, target_audience, content_type } = body
@@ -320,7 +380,9 @@ export async function POST(req: NextRequest) {
 			created_at: new Date().toISOString(),
 			result: null,
 		}
-		jobStore.set(jobId, job)
+
+		// Persist immediately as 'processing'
+		await persistJob(job, user.id)
 
 		const userMessage = buildUserPrompt({
 			prompt,
@@ -329,14 +391,15 @@ export async function POST(req: NextRequest) {
 			contentType: content_type,
 		})
 
-		const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+		const apiUrl = (process.env.CONTENT_API_URL || 'https://openrouter.ai/api/v1').replace(/\/+$/, '')
+		const aiResponse = await fetch(`${apiUrl}/chat/completions`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 				Authorization: `Bearer ${process.env.CONTENT_API_KEY || ''}`,
 			},
 			body: JSON.stringify({
-				model: 'google/gemini-2.5-flash',
+				model: process.env.CONTENT_MODEL || 'google/gemini-2.5-flash',
 				max_tokens: 4096,
 				temperature: 0.7,
 				response_format: { type: 'json_object' },
@@ -375,7 +438,9 @@ export async function POST(req: NextRequest) {
 		const result = mapKeysToStrategy(parsed, platform, target_audience, content_type)
 		job.status = 'completed'
 		job.result = result
-		jobStore.set(jobId, job)
+
+		// Update persisted job with result
+		await updatePersistedJob(jobId, user.id, { status: 'completed', result })
 
 		return NextResponse.json({ job }, { status: 201 })
 	} catch (err: any) {
@@ -385,12 +450,15 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+	const user = getUserFromRequest(req)
+	if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
 	try {
-		const jobs = Array.from(jobStore.values())
-			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-			.slice(0, 20)
+		const jobs = await loadJobs(user.id)
 		return NextResponse.json({ jobs })
 	} catch (err: any) {
 		return NextResponse.json({ error: err.message }, { status: 500 })
 	}
 }
+
+
