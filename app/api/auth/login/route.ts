@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
         name: user.name,
         phone: user.phone ?? null,
         role: user.role ?? 'User',
+        avatar: user.avatar ?? null,
         passwordChangesUsed: user.password_changes_used ?? 0,
         membershipOrder: user.membership_order ?? 'A7B9C2D',
         totalCreatedVideos: user.total_created_videos ?? 0,

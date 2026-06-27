@@ -5,7 +5,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ platform: string }> }
 ) {
-  const { platform } = await params
+  // const { platform } = await params
+  const paramsData = await params
+  const platform = paramsData.platform == 'x' ? 'twitter' : paramsData.platform // normalize 'x' to 'twitter'
   const code = req.nextUrl.searchParams.get('code')
   const state = req.nextUrl.searchParams.get('state')
   const error = req.nextUrl.searchParams.get('error')
@@ -102,7 +104,7 @@ export async function GET(
 
     const youtubeRedirectUri = getRedirectUri('youtube')
     console.log('[social-connect/callback] YouTube OAuth callback redirect_uri:', youtubeRedirectUri)
-    
+
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -167,7 +169,7 @@ export async function GET(
     })
 
     const tokenData = await tokenResponse.json()
-      if (!tokenResponse.ok || tokenData.error) {
+    if (!tokenResponse.ok || tokenData.error) {
       const message = tokenData.error?.message || 'Failed to exchange Facebook OAuth code.'
       return sendError(message)
     }
@@ -337,9 +339,13 @@ export async function GET(
     }
 
     const twitterRedirectUri = getRedirectUri('twitter')
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     const tokenResponse = await fetch('https://api.twitter.com/2/oauth2/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basicAuth}`
+      },
       body: new URLSearchParams({
         client_id: clientId,
         grant_type: 'authorization_code',

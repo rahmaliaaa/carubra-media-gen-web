@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
 import { useLanguage } from "@/contexts/language-context"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Camera, Upload, X, Loader2 } from "lucide-react"
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth()
@@ -27,6 +27,15 @@ export default function ProfilePage() {
   const [showNewPw, setShowNewPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
 
+  // ── Avatar state ────────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar ?? null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const [avatarSuccess, setAvatarSuccess] = useState(false)
+
+  // ── Stats ───────────────────────────────────────────────────────────────────
   const roleDisplay = user?.role || "User"
   const passwordChangesUsed = user?.passwordChangesUsed ?? 0
   const passwordChangeLimit = 5
@@ -60,9 +69,80 @@ export default function ProfilePage() {
       .catch(() => {})
   }, [])
 
+  // Sync avatar dari user context
+  useEffect(() => {
+    if (user?.avatar) setAvatarPreview(user.avatar)
+  }, [user?.avatar])
+
   const displayVideos = totalVideos !== null ? totalVideos : totalCreatedVideos
   const displaySocials = totalSocials !== null ? totalSocials : connectedSocialAccounts
 
+  // ── Handle avatar file pick ──────────────────────────────────────────────────
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setAvatarError(null)
+    setAvatarSuccess(false)
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
+    if (!allowedTypes.includes(file.type)) {
+      setAvatarError("Format tidak didukung. Gunakan JPG, PNG, WebP, atau GIF.")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Ukuran file terlalu besar. Maks 5 MB.")
+      return
+    }
+
+    setAvatarFile(file)
+    const reader = new FileReader()
+    reader.onload = () => setAvatarPreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) return
+    setIsUploadingAvatar(true)
+    setAvatarError(null)
+    setAvatarSuccess(false)
+
+    try {
+      const token = localStorage.getItem("carubra-token")
+      const form = new FormData()
+      form.append("avatar", avatarFile)
+
+      const res = await fetch("/api/users/avatar", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        body: form,
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        setAvatarError(data.error ?? "Gagal mengupload foto.")
+        return
+      }
+
+      updateUser({ avatar: data.avatarUrl })
+      setAvatarFile(null)
+      setAvatarSuccess(true)
+      setTimeout(() => setAvatarSuccess(false), 3000)
+    } catch {
+      setAvatarError("Terjadi kesalahan. Coba lagi.")
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
+  const handleCancelAvatar = () => {
+    setAvatarFile(null)
+    setAvatarPreview(user?.avatar ?? null)
+    setAvatarError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  // ── Handle profile save ──────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
@@ -101,15 +181,93 @@ export default function ProfilePage() {
       <h1 className="text-3xl font-bold text-foreground">{t("profile.title")}</h1>
       <Card className="border border-border transition-all duration-300 hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10">
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                {initials || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div>
+          <div className="flex items-center gap-5">
+            {/* ── Avatar dengan tombol kamera ── */}
+            <div className="relative group">
+              <Avatar className="h-24 w-24 ring-2 ring-border group-hover:ring-emerald-500/50 transition-all duration-300">
+                {avatarPreview ? (
+                  <AvatarImage src={avatarPreview} alt={name} className="object-cover" />
+                ) : null}
+                <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                  {initials || "U"}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* Overlay kamera */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+              >
+                <Camera className="w-6 h-6 text-white" />
+              </button>
+
+              {/* Badge notif ada file baru */}
+              {avatarFile && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-background animate-pulse" />
+              )}
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+
+            <div className="flex-1 space-y-1">
               <CardTitle className="text-xl">{name || "User"}</CardTitle>
-              <p className="text-muted-foreground">{user?.email}</p>
+              <p className="text-muted-foreground text-sm">{user?.email}</p>
+
+              {/* Preview action buttons */}
+              {avatarFile ? (
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAvatarUpload}
+                    disabled={isUploadingAvatar}
+                    className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                  >
+                    {isUploadingAvatar ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    {isUploadingAvatar ? "Mengupload…" : "Simpan Foto"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancelAvatar}
+                    disabled={isUploadingAvatar}
+                    className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Batal
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-emerald-600 hover:text-emerald-500 transition-colors flex items-center gap-1 pt-1"
+                >
+                  <Camera className="w-3 h-3" />
+                  Ganti foto profil
+                </button>
+              )}
+
+              {/* Avatar feedback messages */}
+              {avatarError && (
+                <p className="text-xs text-destructive">{avatarError}</p>
+              )}
+              {avatarSuccess && (
+                <p className="text-xs text-emerald-600">✓ Foto profil berhasil diperbarui!</p>
+              )}
             </div>
           </div>
         </CardHeader>

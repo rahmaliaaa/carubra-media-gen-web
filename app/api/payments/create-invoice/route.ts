@@ -19,14 +19,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing packageId' }, { status: 400 })
   }
 
-  // ── Ambil paket dari DB, bukan hardcode ──
-  const pkg = await findOne('membership_packages', { id: packageId, is_active: true })
-  if (!pkg) return NextResponse.json({ error: 'Paket tidak ditemukan atau tidak aktif' }, { status: 400 })
+  // ── Ambil paket dari DB ──
+  // Cari by ID dulu, lalu cek is_active kalau kolom tersedia
+  const pkg = await findOne('membership_packages', { id: packageId })
+  if (!pkg) return NextResponse.json({ error: 'Paket tidak ditemukan' }, { status: 400 })
+  // Kalau kolom is_active ada dan bernilai false, tolak
+  if (pkg.is_active === false) return NextResponse.json({ error: 'Paket tidak aktif' }, { status: 400 })
 
   const pkgTitle = `${pkg.coins} TOKEN`
   const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? ''
-  const successUrl = `${baseUrl}/dashboard/member?payment=success&orderId=${encodeURIComponent(invoiceNumber)}`
+  const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '')
+  const successUrl = `${baseUrl}/dashboard/payment-success?orderId=${encodeURIComponent(invoiceNumber)}&status=success`
   const failureUrl = `${baseUrl}/dashboard/member?payment=failed&orderId=${encodeURIComponent(invoiceNumber)}`
 
   try {

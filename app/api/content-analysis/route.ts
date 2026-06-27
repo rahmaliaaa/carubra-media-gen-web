@@ -55,17 +55,17 @@ function getFallbackJobs(userId: string): Map<string, StrategyJob> {
 
 async function persistJob(job: StrategyJob, userId: string) {
 	try {
-		await insert('content_analysis_jobs', {
+		await insert('content_analysis', {
 			id: job.id,
 			user_id: userId,
 			prompt: job.prompt,
 			platform: job.platform,
-			target_audience: job.target_audience,
 			status: job.status,
-			result: job.result,
+			analysis_result: job.result,
 			created_at: job.created_at,
 		})
-	} catch {
+	} catch (e: any) {
+		console.warn('[content-analysis] failed to persist:', e.message)
 		// Table may not exist yet — use in-memory fallback
 		getFallbackJobs(userId).set(job.id, job)
 	}
@@ -74,8 +74,12 @@ async function persistJob(job: StrategyJob, userId: string) {
 async function updatePersistedJob(jobId: string, userId: string, updates: Partial<StrategyJob>) {
 	try {
 		const { updateOne } = await import('@/lib/supabase')
-		await updateOne('content_analysis_jobs', { id: jobId, user_id: userId }, updates)
-	} catch {
+		const dbUpdates: any = { updated_at: new Date().toISOString() }
+		if (updates.status) dbUpdates.status = updates.status
+		if (updates.result !== undefined) dbUpdates.analysis_result = updates.result
+		await updateOne('content_analysis', { id: jobId, user_id: userId }, dbUpdates)
+	} catch (e: any) {
+		console.warn('[content-analysis] failed to update:', e.message)
 		const existing = getFallbackJobs(userId).get(jobId)
 		if (existing) getFallbackJobs(userId).set(jobId, { ...existing, ...updates })
 	}
@@ -83,17 +87,26 @@ async function updatePersistedJob(jobId: string, userId: string, updates: Partia
 
 async function loadJobs(userId: string): Promise<StrategyJob[]> {
 	try {
-		const rows = await find('content_analysis_jobs', { user_id: userId }, { orderBy: 'created_at', ascending: false })
-		return (rows || []).map((r: any) => ({
-			id: r.id,
-			prompt: r.prompt,
-			platform: r.platform,
-			target_audience: r.target_audience,
-			status: r.status,
-			created_at: r.created_at,
-			result: r.result ?? null,
-		}))
-	} catch {
+		const rows = await find('content_analysis', { user_id: userId }, { orderBy: 'created_at', ascending: false })
+		console.log('[DEBUG content_analysis rows]', rows?.length)
+		return (rows || []).map((r: any) => {
+			let parsedResult = r.analysis_result
+			if (typeof parsedResult === 'string') {
+				try { parsedResult = JSON.parse(parsedResult) } catch (e) {}
+			}
+			// console.log('[DEBUG parsedResult]', typeof parsedResult, r.analysis_result)
+			return {
+				id: r.id,
+				prompt: r.prompt,
+				platform: r.platform,
+				target_audience: 'Umum',
+				status: r.status,
+				created_at: r.created_at,
+				result: parsedResult ?? null,
+			}
+		})
+	} catch (e: any) {
+		console.warn('[content-analysis] failed to load:', e.message)
 		// Fallback to in-memory
 		return Array.from(getFallbackJobs(userId).values()).sort(
 			(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -268,14 +281,14 @@ function mapKeysToStrategy(obj: any, platform: string, targetAudience: string | 
 	}
 
 	const out: any = {}
-	out.concept_title = pick(source, ['concept_title', 'judul', 'title', 'goal', 'deskripsi']) ?? 'Konsep Konten'
-	out.concept_description = pick(source, ['concept_description', 'deskripsi', 'description', 'goal']) ?? ''
+	out.concept_title = pick(source, ['concept_title', 'judul', 'title', 'goal', 'deskripsi', 'nama_konten', 'deskripsi_produk']) ?? 'Konsep Konten'
+	out.concept_description = pick(source, ['concept_description', 'deskripsi', 'description', 'goal', 'deskripsi_produk']) ?? ''
 	out.hook = pick(source, ['hook', 'opening', 'tangkapan', 'hook_3s']) ?? ''
-	out.content_flow = firstStringArray(source, ['content_flow', 'alur_konten', 'steps', 'flow'])
+	out.content_flow = firstStringArray(source, ['content_flow', 'alur_konten', 'steps', 'flow', 'ide_konten'])
 	out.caption = pick(source, ['caption', 'caption_text', 'keterangan']) ?? ''
 	out.caption_score = Number(pick(source, ['caption_score', 'score_caption'])) || 0
 	out.caption_tone = pick(source, ['caption_tone', 'tone', 'caption_style']) ?? 'relatable'
-	out.hashtags = firstStringArray(source, ['hashtags', 'tagar', 'tags', 'hashtags_strategy', 'keyThemes'])
+	out.hashtags = firstStringArray(source, ['hashtags', 'tagar', 'tags', 'hashtags_strategy', 'keyThemes', 'hashtag_rekomendasi'])
 	out.hashtag_warning = pick(source, ['hashtag_warning', 'peringatan_hashtag']) ?? null
 	out.estimated_views = pick(source, ['estimated_views', 'perkiraan_views']) ?? { min: '0', max: '0' }
 	out.engagement_rate = Number(pick(source, ['engagement_rate', 'eng_rate'])) || 0
@@ -292,13 +305,13 @@ function mapKeysToStrategy(obj: any, platform: string, targetAudience: string | 
 	out.competitor_insight = pick(source, ['competitor_insight', 'insight_competitor', 'insight_kompetitor']) ?? ''
 	out.cta_suggestions = firstStringArray(source, ['cta_suggestions', 'cta', 'cta_variations'])
 
-	const pillars = firstObjectArray(source, ['content_pillars', 'pillars', 'contentPillar', 'content_pillar', 'content_pillar'])
+	const pillars = firstObjectArray(source, ['content_pillars', 'pillars', 'contentPillar', 'content_pillar', 'ide_konten'])
 	if (out.content_flow.length === 0 && pillars.length > 0) {
 		out.content_flow = pillars.flatMap((p: any) => {
 			if (Array.isArray(p.contentIdeas)) {
 				return p.contentIdeas.slice(0, 2).map((idea: any) => String(idea.idea || idea.title || idea.name || 'Ide konten'))
 			}
-			return [p.pillar_name || p.pillarName || String(p)]
+			return [p.pillar_name || p.pillarName || p.nama_konten || p.deskripsi || String(p)]
 		}).slice(0, 5)
 	}
 
@@ -457,6 +470,7 @@ export async function GET(req: NextRequest) {
 		const jobs = await loadJobs(user.id)
 		return NextResponse.json({ jobs })
 	} catch (err: any) {
+		console.error('[content-analysis GET error]', err)
 		return NextResponse.json({ error: err.message }, { status: 500 })
 	}
 }

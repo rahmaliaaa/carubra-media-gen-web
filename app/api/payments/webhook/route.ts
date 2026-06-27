@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       payment_status: newStatus,
       paid_at:        newStatus === 'success' ? (paid_at ?? new Date().toISOString()) : null,
       payment_method: payment_method ?? transaction.payment_method,
+      updated_at:     new Date().toISOString(),
     })
 
     // ── 5. Kalau PAID → kredit coins ke user ──
@@ -67,9 +68,10 @@ export async function POST(req: NextRequest) {
 
       await updateOne('users', { id: transaction.user_id }, {
         coins: currentCoins + coinsToAdd,
+        updated_at: new Date().toISOString(),
       })
 
-      console.log(`[webhook] +${coinsToAdd} coins → user ${transaction.user_id}`)
+      console.log(`[webhook] Sukses! +${coinsToAdd} coins ditambahkan ke user ${transaction.user_id}. Total koin sekarang: ${currentCoins + coinsToAdd}`)
     }
 
     return NextResponse.json({ received: true })

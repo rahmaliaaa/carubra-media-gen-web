@@ -7,14 +7,26 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const docs = await find('generated_contents', { user_id: user.id }, { orderBy: 'created_at', ascending: false })
-    const contents = docs.map((doc: any) => ({
-      _id: doc.id,
-      mediaUrl: doc.media_url,
-      mediaType: doc.media_type,
-      prompt: doc.prompt,
-      createdAt: doc.created_at,
-    }))
+    const images = await find('images', { user_id: user.id }, { orderBy: 'created_at', ascending: false })
+    const videos = await find('videos', { user_id: user.id }, { orderBy: 'created_at', ascending: false })
+
+    const contents = [
+      ...images.filter((doc: any) => doc.status === 'completed').map((doc: any) => ({
+        _id: doc.id,
+        mediaUrl: doc.image_url,
+        mediaType: 'image',
+        prompt: doc.prompt,
+        createdAt: doc.created_at,
+      })),
+      ...videos.filter((doc: any) => doc.status === 'completed').map((doc: any) => ({
+        _id: doc.id,
+        mediaUrl: doc.video_url,
+        mediaType: 'video',
+        prompt: doc.prompt,
+        createdAt: doc.created_at,
+      }))
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
     return NextResponse.json({ contents })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })

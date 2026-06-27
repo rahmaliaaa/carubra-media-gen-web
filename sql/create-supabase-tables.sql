@@ -142,9 +142,38 @@ CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_api_name ON public.ai_usage_logs (a
 CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_created_at ON public.ai_usage_logs (created_at DESC);
 
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_banned boolean DEFAULT false;
+-- Kolom avatar untuk foto profil user (URL Supabase Storage)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS avatar text;
 
 -- Grant minimal privileges to anon (optional) - adjust for your environment
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON public.generated_contents TO anon;
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON public.scheduled_posts TO anon;
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON public.social_connects TO anon;
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON public.users TO anon;
+
+-- ─────────────────────────────────────────────────────────────────
+-- SUPABASE STORAGE: Bucket "avatars" untuk foto profil user
+-- Jalankan ini di Supabase SQL Editor ATAU buat bucket manual di
+-- Storage → New bucket → Name: avatars → Public: ON
+-- ─────────────────────────────────────────────────────────────────
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy: user bisa upload avatar mereka sendiri
+CREATE POLICY IF NOT EXISTS "Users can upload own avatar"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Policy: avatar bisa dibaca siapa saja (public)
+CREATE POLICY IF NOT EXISTS "Avatars are publicly readable"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'avatars');
+
+-- Policy: user bisa update avatar mereka sendiri
+CREATE POLICY IF NOT EXISTS "Users can update own avatar"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);

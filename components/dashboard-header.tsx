@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { Avatar } from "@/components/ui/avatar"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Coins, ShoppingCart } from "lucide-react"
 import React from "react"
 // Logo is in sidebar; header will not render it
@@ -65,8 +65,13 @@ export function DashboardHeader() {
           <div className="text-xs text-muted-foreground">{user?.email}</div>
         </div>
         <div className="flex items-center gap-2">
-          <Avatar>
-            <span className="bg-primary text-white rounded-full inline-flex items-center justify-center w-8 h-8">{initials}</span>
+          <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+            {user?.avatar && (
+              <AvatarImage src={user.avatar} alt={user.name ?? "avatar"} className="object-cover" />
+            )}
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+              {initials}
+            </AvatarFallback>
           </Avatar>
         </div>
       </div>

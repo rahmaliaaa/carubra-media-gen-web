@@ -9,7 +9,9 @@ export async function POST(
   const user = getUserFromRequest(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { platform } = await params
+  // const { platform } = await params
+  const paramsData = await params
+  const platform = paramsData.platform == 'x' ? 'twitter' : paramsData.platform // normalize 'x' to 'twitter'
   const baseUrl =
     process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ||
     process.env.FRONTEND_URL?.replace(/\/$/, '') ||
@@ -44,6 +46,8 @@ export async function POST(
       twitter:
         normalizeUri(process.env.TWITTER_REDIRECT_URI) ||
         normalizeUri(process.env.X_REDIRECT_URI),
+      threads:
+        normalizeUri(process.env.THREADS_REDIRECT_URI),
     }
 
     const prodMap: Record<string, string | undefined> = {
@@ -65,6 +69,9 @@ export async function POST(
         process.env.TWITTER_REDIRECT_URI_VERCEL?.replace(/\/$/, '') ||
         process.env.TWITTER_REDIRECT_URI?.replace(/\/$/, '') ||
         process.env.X_REDIRECT_URI?.replace(/\/$/, ''),
+      threads:
+        process.env.THREADS_REDIRECT_URI_VERCEL?.replace(/\/$/, '') ||
+        process.env.THREADS_REDIRECT_URI?.replace(/\/$/, ''),
     }
 
     return (isLocalHost ? localMap[platform] : prodMap[platform]) || `${baseUrl}/api/social-connect/${platform}/callback`
@@ -75,8 +82,9 @@ export async function POST(
   const tiktokRedirectUri = getRedirectUri('tiktok')
   const facebookRedirectUri = getRedirectUri('facebook')
   const twitterRedirectUri = getRedirectUri('twitter')
+  const threadsRedirectUri = getRedirectUri('threads')
 
-  console.log('[social-connect/start] platform=%s baseUrl=%s instagramRedirectUri=%s facebookRedirectUri=%s youtubeRedirectUri=%s tiktokRedirectUri=%s twitterRedirectUri=%s', platform, baseUrl, instagramRedirectUri, facebookRedirectUri, youtubeRedirectUri, tiktokRedirectUri, twitterRedirectUri)
+  console.log('[social-connect/start] platform=%s baseUrl=%s instagramRedirectUri=%s facebookRedirectUri=%s youtubeRedirectUri=%s tiktokRedirectUri=%s twitterRedirectUri=%s threadsRedirectUri=%s', platform, baseUrl, instagramRedirectUri, facebookRedirectUri, youtubeRedirectUri, tiktokRedirectUri, twitterRedirectUri, threadsRedirectUri)
 
   const hasFacebookAppId = envExists('FACEBOOK_APP_ID') || envExists('FB_APP_ID')
   const hasFacebookAppSecret = envExists('FACEBOOK_APP_SECRET') || envExists('FB_APP_SECRET')
@@ -91,7 +99,8 @@ export async function POST(
     facebook: `https://www.facebook.com/v18.0/dialog/oauth?client_id=${process.env.FACEBOOK_APP_ID || process.env.FB_APP_ID}&redirect_uri=${encodeURIComponent(facebookRedirectUri)}&scope=pages_show_list,pages_read_engagement,pages_manage_posts&response_type=code&state=${encodeURIComponent(user.id)}`,
     youtube: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(youtubeRedirectUri)}&scope=${encodeURIComponent('openid email profile https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.force-ssl')}&response_type=code&access_type=offline&prompt=consent&include_granted_scopes=true&state=${encodeURIComponent(user.id)}`,
     tiktok: `https://www.tiktok.com/auth/authorize/?client_key=${process.env.TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_ID}&scope=user.info.basic,video.upload&response_type=code&redirect_uri=${encodeURIComponent(tiktokRedirectUri)}&state=${encodeURIComponent(user.id)}`,
-    twitter: `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${process.env.TWITTER_CLIENT_ID || process.env.X_CLIENT_ID}&redirect_uri=${encodeURIComponent(twitterRedirectUri)}&scope=tweet.read tweet.write users.read&state=${encodeURIComponent(user.id)}&code_challenge=challenge&code_challenge_method=plain`,
+    twitter: `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${process.env.TWITTER_CLIENT_ID || process.env.X_CLIENT_ID}&redirect_uri=${encodeURIComponent(twitterRedirectUri)}&scope=${encodeURIComponent('tweet.read tweet.write users.read media.write offline.access')}&state=${encodeURIComponent(user.id)}&code_challenge=challenge&code_challenge_method=plain`,
+    threads: `https://threads.net/oauth/authorize?client_id=${process.env.THREADS_CLIENT_ID}&redirect_uri=${encodeURIComponent(threadsRedirectUri)}&scope=${encodeURIComponent('threads_basic,threads_content_publish')}&response_type=code&state=${encodeURIComponent(user.id)}`,
   }
 
   if (platform === 'youtube' && !youtubeRedirectUri) {
@@ -114,14 +123,10 @@ export async function POST(
     return NextResponse.json({ error: 'Twitter redirect URI not configured. Set TWITTER_REDIRECT_URI, X_REDIRECT_URI, or TWITTER_REDIRECT_URI_VERCEL in .env.' }, { status: 500 })
   }
 
-  if (platform === 'whatsapp') {
-    const gowaBaseUrl = process.env.GOWA_BASE_URL?.trim()
-    if (!gowaBaseUrl) {
-      return NextResponse.json({ error: 'GOWA_BASE_URL tidak dikonfigurasi. Hubungi developer.' }, { status: 500 })
-    }
-    return NextResponse.json({ url: `${baseUrl}/setup/whatsapp` })
+  if (platform === 'threads' && !threadsRedirectUri) {
+    return NextResponse.json({ error: 'Threads redirect URI not configured. Set THREADS_REDIRECT_URI or THREADS_REDIRECT_URI_VERCEL in .env.' }, { status: 500 })
   }
-  
+
   // Validate credentials for selected platform
   const credentialGroups: Record<string, string[][]> = {
     instagram: hasFacebookAppId && hasFacebookAppSecret
@@ -131,6 +136,7 @@ export async function POST(
     youtube: [['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']],
     tiktok: [['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'], ['TIKTOK_CLIENT_ID', 'TIKTOK_CLIENT_SECRET']],
     twitter: [['TWITTER_CLIENT_ID', 'TWITTER_CLIENT_SECRET'], ['X_CLIENT_ID', 'X_CLIENT_SECRET']],
+    threads: [['THREADS_CLIENT_ID', 'THREADS_CLIENT_SECRET']],
   }
 
   const selectedGroups = credentialGroups[platform] || []
@@ -138,8 +144,8 @@ export async function POST(
 
   if (!hasValidCredentials) {
     const groupHints = selectedGroups.map(group => group.join(' + ')).join(' or ')
-    return NextResponse.json({ 
-      error: `${platform} OAuth credentials not configured. Please set one of: ${groupHints}` 
+    return NextResponse.json({
+      error: `${platform} OAuth credentials not configured. Please set one of: ${groupHints}`
     }, { status: 500 })
   }
 

@@ -27,7 +27,7 @@ const Youtube = Video
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SocmedId = "instagram" | "facebook" | "tiktok" | "youtube" | "twitter" | "threads" | "whatsapp"
+type SocmedId = "instagram" | "facebook" | "tiktok" | "youtube" | "twitter" | "threads" 
 
 type PostType = {
   instagram: "story" | "feed" | "reels"
@@ -36,7 +36,6 @@ type PostType = {
   youtube: "video" | "shorts"
   twitter: "tweet"
   threads: "post"
-  whatsapp: "message" | "story wa"
 }
 
 type MediaSource = "upload" | "generated"
@@ -67,7 +66,7 @@ type ScheduledPost = {
   date: string
   time: string
   platforms: SocmedId[]
-  status: "scheduled" | "published" | "failed" | "draft"
+  status: "scheduled" | "posted" | "failed" | "draft"
   createdAt: string
 }
 
@@ -82,12 +81,6 @@ const TikTokIcon = ({ className }: { className?: string }) => (
 const ThreadsIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-.505-1.975-1.442-3.512-2.79-4.572-1.3-1.022-3.147-1.575-5.49-1.59-2.8.018-4.963.87-6.429 2.534-1.418 1.61-2.142 3.965-2.15 7.003v.017c.008 3.038.732 5.393 2.15 7.003 1.466 1.663 3.63 2.517 6.43 2.534 2.292-.016 4.143-.61 5.5-1.76 1.448-1.228 2.19-3.058 2.204-5.438-.014-1.516-.36-2.754-1.027-3.68-.616-.856-1.52-1.384-2.685-1.57-.21 1.697-.723 3.105-1.527 4.186-.978 1.31-2.34 2.014-3.946 2.034-1.348-.013-2.48-.467-3.274-1.312-.845-.9-1.283-2.147-1.265-3.612.018-1.462.495-2.703 1.38-3.594.924-.929 2.217-1.42 3.744-1.42.166 0 .336.006.508.02.5.04.995.13 1.477.265.052-1.068.07-2.184.053-3.327l2.052.002c.017 1.257-.005 2.48-.065 3.657 1.567.582 2.799 1.611 3.562 3.02.79 1.451 1.15 3.198 1.07 5.19-.086 3.023-1.067 5.402-2.835 6.876-1.718 1.434-4.024 2.139-6.857 2.156zm-.334-11.903c-.885.012-1.617.29-2.118.802-.47.48-.702 1.12-.713 1.904-.01.784.21 1.406.655 1.848.426.423 1.017.644 1.712.655 1.03-.013 1.848-.487 2.432-1.37.59-.893.9-2.163.923-3.777-.28-.037-.565-.062-.89-.062z"/>
-  </svg>
-)
-
-const WhatsAppIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
   </svg>
 )
 
@@ -149,20 +142,11 @@ const PLATFORM_META: PlatformMeta[] = [
   },
   {
     id: "threads", name: "Threads", color: "#101010", Icon: ThreadsIcon,
-    connectLabel: "Hubungkan Threads",
-    connectHint: "Klik untuk melihat status integrasi Threads dan memeriksa apakah koneksi dapat dibuat.",
+    connectLabel: "Masuk dengan Threads",
+    connectHint: "Gunakan OAuth untuk menghubungkan akun Threads dan mengaktifkan penjadwalan post.",
     usernameLabel: "Username Threads",
     usernamePlaceholder: "@namakamu",
     postTypes: ["post"],
-    uiOnly: true,
-  },
-  {
-    id: "whatsapp", name: "WhatsApp", color: "#25D366", Icon: WhatsAppIcon,
-    connectLabel: "Hubungkan WhatsApp",
-    connectHint: "Hubungkan WhatsApp lewat GoWA. Scan QR dari halaman GoWA, lalu simpan nomor WhatsApp kamu.",
-    usernameLabel: "Nomor WhatsApp",
-    usernamePlaceholder: "+62 8xx xxxx xxxx",
-    postTypes: ["message", "story wa"],
   },
 ]
 
@@ -170,7 +154,7 @@ const metaMap = Object.fromEntries(PLATFORM_META.map(p => [p.id, p])) as Record<
 
 const STATUS_META = {
   scheduled: { label: "Terjadwal",  cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",   Icon: AlarmClock   },
-  published:  { label: "Selesai",   cls: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400", Icon: CheckCircle2 },
+  posted:  { label: "Selesai",   cls: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400", Icon: CheckCircle2 },
   failed:     { label: "Gagal",     cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",         Icon: XCircle      },
   draft:      { label: "Draft",     cls: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",        Icon: Save         },
 } as const
@@ -230,11 +214,6 @@ export default function AutoUploadPage() {
   const [showIgInstructionDialog, setShowIgInstructionDialog] = useState(false)
   const [pendingOAuthId, setPendingOAuthId] = useState<SocmedId | null>(null)
 
-  // WhatsApp QR dialog
-  const [showWhatsAppQrDialog, setShowWhatsAppQrDialog] = useState(false)
-  const [whatsappPhone, setWhatsappPhone] = useState('')
-  const [whatsappError, setWhatsappError] = useState<string | null>(null)
-  const [isSavingWhatsApp, setIsSavingWhatsApp] = useState(false)
 
   // WhatsApp / Threads coming soon dialog
   const [showComingSoonDialog, setShowComingSoonDialog] = useState(false)
@@ -332,21 +311,13 @@ export default function AutoUploadPage() {
       setShowComingSoonDialog(true)
       return
     }
-
-    if (id === 'whatsapp') {
-      setShowWhatsAppQrDialog(true)
-      setWhatsappPhone('')
-      setWhatsappError(null)
-      return
-    }
-
     if (id === 'instagram') {
       setPendingOAuthId(id)
       setShowIgInstructionDialog(true)
       return
     }
 
-    if (id === 'facebook' || id === 'youtube' || id === 'tiktok' || id === 'twitter') {
+    if (id === 'facebook' || id === 'youtube' || id === 'tiktok' || id === 'twitter' || id === 'threads') {
       startOAuth(id)
       return
     }
@@ -355,29 +326,6 @@ export default function AutoUploadPage() {
     setConnectPlatform(id)
     setConnectUsername("")
     setConnectError(null)
-  }
-
-  const handleSaveWhatsAppPhone = async () => {
-    if (!whatsappPhone.trim()) {
-      setWhatsappError('Nomor WhatsApp tidak boleh kosong.')
-      return
-    }
-
-    setIsSavingWhatsApp(true)
-    setWhatsappError(null)
-    try {
-      await apiFetch('/api/social-connect', {
-        method: 'POST',
-        body: JSON.stringify({ platform: 'whatsapp', username: whatsappPhone.trim() }),
-      })
-      await fetchConnections()
-      setShowWhatsAppQrDialog(false)
-      setWhatsappPhone('')
-    } catch (e: any) {
-      setWhatsappError(e.message)
-    } finally {
-      setIsSavingWhatsApp(false)
-    }
   }
 
   const handleProceedOAuth = async () => {
@@ -533,8 +481,8 @@ export default function AutoUploadPage() {
   const handleRunPending = async () => {
     setIsRunning(true)
     try {
-      const data = await apiFetch<{ published: number; failed: number; errors: string[] }>('/api/scheduled-posts/run', { method: 'POST' })
-      const message = `Diproses: ${data.published} berhasil, ${data.failed} gagal.`
+      const data = await apiFetch<{ posted: number; failed: number; errors: string[] }>('/api/scheduled-posts/run', { method: 'POST' })
+      const message = `Diproses: ${data.posted} berhasil, ${data.failed} gagal.`
       alert(data.errors && data.errors.length ? `${message}\n
 ${data.errors.join('\n')}` : message)
       await fetchPosts()
@@ -953,17 +901,12 @@ ${data.errors.join('\n')}` : message)
                 onKeyDown={e => e.key === "Enter" && handleConfirmConnect()}
                 autoFocus
               />
+              {connectError && (
+                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" /> {connectError}
+                </div>
+              )}
             </div>
-            {connectPlatform === 'whatsapp' && (
-              <div className="space-y-1.5 rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground leading-relaxed">
-                GoWA sudah terpasang. Scan QR di halaman setup GoWA, lalu simpan nomor WhatsApp kamu.
-              </div>
-            )}
-            {connectError && (
-              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" /> {connectError}
-              </div>
-            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConnectPlatform(null)} disabled={isConnecting}>Batal</Button>
@@ -1072,62 +1015,7 @@ ${data.errors.join('\n')}` : message)
         </DialogContent>
       </Dialog>
 
-      {/* ══ Dialog 4: WHATSAPP QR ══ */}
-      <Dialog open={showWhatsAppQrDialog} onOpenChange={setShowWhatsAppQrDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#25D36620]">
-                <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
-              </div>
-              Hubungkan WhatsApp
-            </DialogTitle>
-            <DialogDescription>Scan QR code dengan ponsel kamu</DialogDescription>
-          </DialogHeader>
-          <div className="py-3 space-y-4">
-            <div className="rounded-xl bg-muted/60 p-4 flex flex-col items-center gap-3">
-              <p className="text-xs text-muted-foreground text-center">Buka aplikasi WhatsApp di ponsel dan scan QR code berikut:</p>
-              <div className="bg-white p-3 rounded-lg border border-border">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                    process.env.NEXT_PUBLIC_GOWA_BASE_URL
-                      ? `${process.env.NEXT_PUBLIC_GOWA_BASE_URL.replace(/\/$/, '')}/setup/whatsapp`
-                      : 'https://gowa.example.com/setup/whatsapp'
-                  )}`}
-                  alt="QR code untuk WhatsApp"
-                  className="w-48 h-48"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground text-center">Setelah scan, nomor WhatsApp akan terkoneksi ke akun kamu.</p>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Nomor WhatsApp</Label>
-              <Input
-                placeholder="+62 812 xxxx xxxx"
-                value={whatsappPhone}
-                onChange={e => setWhatsappPhone(e.target.value)}
-                disabled={isSavingWhatsApp}
-                className="text-sm"
-              />
-              <p className="text-xs text-muted-foreground">Masukkan nomor yang sudah dikoneksikan di atas.</p>
-            </div>
-            {whatsappError && (
-              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
-                {whatsappError}
-              </div>
-            )}
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowWhatsAppQrDialog(false)} disabled={isSavingWhatsApp}>
-              Batal
-            </Button>
-            <Button onClick={handleSaveWhatsAppPhone} disabled={isSavingWhatsApp} className="gap-2">
-              {isSavingWhatsApp ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Simpan Nomor
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      
 
       {/* ══ Dialog 5: PLATFORM STATUS ══ */}
       <Dialog open={showComingSoonDialog} onOpenChange={setShowComingSoonDialog}>
@@ -1154,7 +1042,7 @@ ${data.errors.join('\n')}` : message)
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              Platform ini ditampilkan untuk keperluan roadmap. Silakan gunakan Instagram, Facebook, atau WhatsApp untuk uji otomatisasi sekarang.
+              Platform ini ditampilkan untuk keperluan roadmap. Silakan gunakan Instagram, Facebook, atau platform lain yang sudah terhubung.
             </p>
           </div>
           <DialogFooter>
